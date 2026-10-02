@@ -44,7 +44,7 @@ tabs=st.tabs([
 
 with tabs[0]:
     st.subheader("🔎 Radar de Oportunidades")
-    st.write("O robô pesquisa fontes públicas e traz candidatos novos para investigação. O Score Radar é um filtro inicial — não é autorização automática para comprar estoque.")
+    st.write("O Radar é Shopee‑First: procura evidências ligadas à Shopee primeiro e usa fornecedores, Google e outros marketplaces apenas como confirmação. O Score Radar é um filtro inicial — não é autorização automática para comprar estoque.")
     c1,c2,c3,c4=st.columns([2,2,1,1])
     category=c1.selectbox("Categoria",list(CATEGORY_LABELS.keys()),index=0)
     mode=c2.selectbox("Tipo de oportunidade",list(MODE_HINTS.keys()),index=0)
@@ -70,7 +70,7 @@ with tabs[0]:
             rows=result.get("rows",[])
             if rows:
                 df=pd.DataFrame(rows)
-                show=["score_radar","classificacao","oportunidade","por_que_agora","fonte","descricao","url"]
+                show=["score_radar","classificacao","oportunidade","evidencia_shopee","fontes_confirmando","confirmacoes_secundarias","fornecedores_sinal","fontes","por_que_agora","descricao","url"]
                 st.dataframe(df[show],use_container_width=True,hide_index=True,
                     column_config={"url":st.column_config.LinkColumn("Abrir fonte")})
                 st.download_button(
@@ -79,7 +79,12 @@ with tabs[0]:
                     file_name="radar_oportunidades.csv",
                     mime="text/csv"
                 )
-                st.info("Próxima etapa: pegue os candidatos com maior Score Radar e valide fornecedor, custo, margem, concorrência, logística e sazonalidade antes do teste real.")
+                st.info("Regra Shopee‑First: candidatos sem evidência Shopee não recebem Prioridade Alta. Depois, valide fornecedor, custo, margem, concorrência, logística e sazonalidade antes do teste real.")
+                supplier_rows=result.get("suppliers",[])
+                if supplier_rows:
+                    with st.expander(f"Fornecedores encontrados ({len(supplier_rows)})"):
+                        st.dataframe(pd.DataFrame(supplier_rows),use_container_width=True,hide_index=True,
+                            column_config={"url":st.column_config.LinkColumn("Abrir fornecedor")})
             else:
                 st.warning("Nenhum resultado foi retornado nesta rodada.")
             if result.get("errors"):

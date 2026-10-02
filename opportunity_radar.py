@@ -112,10 +112,11 @@ MODE_HINTS = {
     "Fornecedor / atacado": "Prioriza sinais de fabricante, distribuidor e atacado",
 }
 
-MARKETPLACE_DOMAINS = (
-    "mercadolivre.com.br","amazon.com.br","shopee.com.br",
-    "magazineluiza.com.br","americanas.com.br"
+SHOPEE_DOMAINS = ("shopee.com.br",)
+SECONDARY_MARKETPLACE_DOMAINS = (
+    "mercadolivre.com.br","amazon.com.br","magazineluiza.com.br","americanas.com.br"
 )
+MARKETPLACE_DOMAINS = SHOPEE_DOMAINS + SECONDARY_MARKETPLACE_DOMAINS
 
 SUPPLIER_WORDS = (
     "atacado","distribuidor","distribuidora","fabricante","fábrica","fabrica",
@@ -202,37 +203,50 @@ def _is_category_match(category, product_name, desc):
 
 def _source_kind(domain, text):
     n = _norm(text)
-    if any(d in domain for d in MARKETPLACE_DOMAINS):
-        return "Marketplace"
+    if any(d in domain for d in SHOPEE_DOMAINS) or "shopee" in n:
+        return "Shopee"
     if any(w in n for w in SUPPLIER_WORDS):
         return "Fornecedor"
+    if any(d in domain for d in SECONDARY_MARKETPLACE_DOMAINS):
+        return "Marketplace secundário"
     return "Fonte pública"
 
 def _score_product(item, category_match=True):
-    title = item.get("product_name","")
-    desc = item.get("description","")
-    domain = item.get("source_domain","")
-    text = _norm(f"{title} {desc}")
-    score = 45
-    reasons = []
+    title=item.get("product_name","")
+    desc=item.get("description","")
+    domain=item.get("source_domain","")
+    text=_norm(f"{title} {desc}")
+    score=34
+    reasons=[]
 
-    if any(d in domain for d in MARKETPLACE_DOMAINS):
-        score += 15; reasons.append("marketplace")
-    if any(w in text for w in SUPPLIER_WORDS):
-        score += 10; reasons.append("fornecedor")
+    shopee_signal = any(d in domain for d in SHOPEE_DOMAINS) or "shopee" in text
+    secondary_market = any(d in domain for d in SECONDARY_MARKETPLACE_DOMAINS)
+    supplier_signal = any(w in text for w in SUPPLIER_WORDS)
+
+    if shopee_signal:
+        score += 34; reasons.append("evidência Shopee")
+    elif secondary_market:
+        score += 8; reasons.append("confirmação em outro marketplace")
+
+    if supplier_signal:
+        score += 12; reasons.append("fornecedor/atacado")
     if any(noun in _norm(title) for noun in PRODUCT_NOUNS):
-        score += 12; reasons.append("produto específico")
+        score += 10; reasons.append("produto específico")
     if "kit" in text:
-        score += 5; reasons.append("kit")
+        score += 4; reasons.append("potencial de kit")
     if re.search(r"r\$\s?\d+|preço|preco", text):
-        score += 5; reasons.append("preço")
-    if "avalia" in text or "estrela" in text:
-        score += 5; reasons.append("avaliações")
+        score += 4; reasons.append("sinal de preço")
+    if "avalia" in text or "estrela" in text or "vendid" in text:
+        score += 5; reasons.append("sinal de demanda")
     if category_match:
         score += 5; reasons.append("categoria coerente")
-    rank = item.get("rank") or 10
-    score += max(0, 8-int(rank))
-    return min(score,100), reasons[:5]
+    rank=item.get("rank") or 10
+    score += max(0,6-int(rank))
+
+    if not shopee_signal:
+        score=min(score,79)
+
+    return min(score,100), reasons[:6]
 
 def classification(score):
     if score >= 82: return "🔥 Prioridade alta"
@@ -242,20 +256,154 @@ def classification(score):
 
 def build_queries(category, mode, max_queries):
     cfg = CATEGORY_CONFIG.get(category, CATEGORY_CONFIG["Geral / todas"])
-    base = list(cfg.get("queries", []))
-    if mode == "Fornecedor / atacado":
-        base = [q.replace("comprar Brasil","atacado fornecedor Brasil") for q in base]
-    elif mode == "Recorrência":
-        base = [q + " refil recompra recorrente" for q in base]
-    elif mode == "Problema → solução":
-        base = [q + " resolve problema avaliações" for q in base]
-    elif mode == "Sazonalidade":
-        year = datetime.now().year
-        base = [q + f" sazonal próximos meses {year}" for q in base]
+    base_terms = list(cfg.get("queries", []))
+    terms = []
+    for q in base_terms:
+        q2 = re.sub(r"\b(comprar|Brasil|atacado|produto específico)\b", " ", q, flags=re.I)
+        q2 = re.sub(r"\s+", " ", q2).strip()
+        if q2 and q2 not in terms:
+            terms.append(q2)
+    if not terms:
+        terms = ["produto utilidade"]
 
-    if not base:
-        base = ["produto específico comprar Brasil"]
-    return base[:max(1,int(max_queries))]
+    queries = []
+    for term in terms:
+        queries.append(f'site:shopee.com.br "{term}"')
+        queries.append(f'"{term}" Shopee Brasil')
+        if mode == "Fornecedor / atacado":
+            queries.append(f'"{term}" atacado fornecedor distribuidor Brasil')
+        elif mode == "Recorrência":
+            queries.append(f'"{term}" refil recompra recorrente Shopee')
+        elif mode == "Problema → solução":
+            queries.append(f'"{term}" avaliações problema solução Shopee')
+        elif mode == "Sazonalidade":
+            queries.append(f'"{term}" Shopee sazonal próximos meses {datetime.now().year}')
+        else:
+            queries.append(f'"{term}" atacado fornecedor Brasil')
+            queries.append(f'"{term}" Mercado Livre Amazon Brasil')
+
+    seen=[]; used=set()
+    for q in queries:
+        if q not in used:
+            seen.append(q); used.add(q)
+    return seen[:max(1,int(max_queries))]
+
+def _canonical_tokens(name):
+    n = _norm(name)
+    # Remove marketplace/site tails and model-only noise.
+    n = re.sub(r"\b(amazon\.com\.br|mercado livre|magazine luiza|magalu|shopee)\b", " ", n)
+    n = re.sub(r"\b(110v|220v|bivolt)\b", " ", n)
+    n = re.sub(r"\b(r\$)?\s?\d+([.,]\d+)?\b", " ", n)
+    n = re.sub(r"[^a-z0-9áàâãéêíóôõúç\s]", " ", n)
+    toks = [t for t in n.split() if len(t) > 2 and t not in STOPWORDS]
+    return toks
+
+def _product_family(name):
+    toks = _canonical_tokens(name)
+    nouns = [t for t in toks if any(p == t or p in t for p in PRODUCT_NOUNS)]
+    core = []
+    for t in toks:
+        if t not in core:
+            core.append(t)
+    # Keep a compact signature; product noun first when available.
+    ordered = []
+    for t in nouns + core:
+        if t not in ordered:
+            ordered.append(t)
+    return ordered[:7]
+
+def _similar_product(a, b):
+    ta, tb = set(_product_family(a)), set(_product_family(b))
+    if not ta or not tb:
+        return False
+    common = ta & tb
+    # Must share at least one concrete product noun.
+    noun_common = any(any(p == x or p in x for p in PRODUCT_NOUNS) for x in common)
+    if not noun_common:
+        return False
+    j = len(common) / max(1, len(ta | tb))
+    # Flexible enough to merge "organizador geladeira" variants.
+    return j >= 0.42 or (len(common) >= 2 and min(len(ta), len(tb)) <= 4)
+
+def _best_product_name(names):
+    # Prefer concise, concrete names and avoid marketplace suffixes.
+    cleaned = [_clean_title(x) for x in names if x]
+    cleaned.sort(key=lambda x: (len(_canonical_tokens(x)), -len(x)), reverse=False)
+    # Among shortest useful names, prefer one containing more concrete product nouns.
+    cleaned.sort(key=lambda x: (-sum(1 for p in PRODUCT_NOUNS if p in _norm(x)), len(x)))
+    return cleaned[0] if cleaned else ""
+
+def _consolidate_products(rows):
+    clusters = []
+    for row in rows:
+        placed = False
+        for c in clusters:
+            if _similar_product(row["oportunidade"], c["names"][0]):
+                c["rows"].append(row)
+                c["names"].append(row["oportunidade"])
+                placed = True
+                break
+        if not placed:
+            clusters.append({"names":[row["oportunidade"]],"rows":[row]})
+
+    consolidated = []
+    for c in clusters:
+        members = c["rows"]
+        domains = []
+        urls = []
+        source_types = []
+        reasons = []
+        for r in members:
+            if r.get("fonte") and r["fonte"] not in domains:
+                domains.append(r["fonte"])
+            if r.get("url") and r["url"] not in urls:
+                urls.append(r["url"])
+            if r.get("tipo_fonte") and r["tipo_fonte"] not in source_types:
+                source_types.append(r["tipo_fonte"])
+            if r.get("por_que_agora"):
+                reasons.extend([x.strip() for x in r["por_que_agora"].split(",") if x.strip()])
+
+        base = max(members, key=lambda x: x.get("score_radar",0)).copy()
+        n_sources = len(domains)
+        confirmation_bonus = min(8, max(0, n_sources - 1) * 3)
+        base["score_radar"] = min(100, int(base.get("score_radar",0)) + confirmation_bonus)
+        base["classificacao"] = classification(base["score_radar"])
+        base["oportunidade"] = _best_product_name(c["names"])
+        shopee_domains = [d for d in domains if any(sd in d for sd in SHOPEE_DOMAINS)]
+        secondary_domains = [d for d in domains if any(md in d for md in SECONDARY_MARKETPLACE_DOMAINS)]
+        supplier_domains = list(dict.fromkeys([
+            r.get("fonte") for r in members if r.get("tipo_fonte") == "Fornecedor" and r.get("fonte")
+        ]))
+        tem_shopee = bool(shopee_domains) or any(r.get("tipo_fonte") == "Shopee" for r in members)
+
+        if tem_shopee:
+            base["score_radar"] = min(100, base["score_radar"] + 6)
+        else:
+            base["score_radar"] = min(base["score_radar"], 79)
+
+        base["classificacao"] = classification(base["score_radar"])
+        base["fontes_confirmando"] = n_sources
+        base["evidencia_shopee"] = "✅ Sim" if tem_shopee else "⚠️ Não"
+        base["confirmacoes_secundarias"] = len(secondary_domains)
+        base["fornecedores_sinal"] = len(supplier_domains)
+        base["fontes"] = ", ".join(domains[:6])
+        base["tipo_fonte"] = ", ".join(source_types)
+        base["evidencias"] = f"{n_sources} fonte(s) independente(s)"
+        unique_reasons = []
+        for x in reasons:
+            if x not in unique_reasons:
+                unique_reasons.append(x)
+        base["por_que_agora"] = ", ".join(unique_reasons[:5]) + (
+            f"; confirmação em {n_sources} fonte(s)" if n_sources > 1 else ""
+        )
+        base["url"] = urls[0] if urls else base.get("url","")
+        consolidated.append(base)
+
+    consolidated.sort(
+        key=lambda x: (x.get("score_radar",0), x.get("fontes_confirmando",1)),
+        reverse=True
+    )
+    return consolidated
 
 def run_opportunity_radar(category="Geral / todas", mode="Geral", max_queries=6, results_per_query=8):
     collector = BraveSearchCollector(count=max(1,min(20,int(results_per_query))))
@@ -337,6 +485,7 @@ def run_opportunity_radar(category="Geral / todas", mode="Geral", max_queries=6,
                 "produto": product_name,
                 "oportunidade": product_name,
                 "tipo_fonte": source_kind,
+                "evidencia_shopee": "✅ Sim" if source_kind == "Shopee" else "⚠️ Não",
                 "por_que_agora": ", ".join(reasons) if reasons else "produto específico encontrado",
                 "fonte": domain,
                 "url": url,
@@ -345,6 +494,7 @@ def run_opportunity_radar(category="Geral / todas", mode="Geral", max_queries=6,
             })
 
     products.sort(key=lambda x: x["score_radar"], reverse=True)
+    products = _consolidate_products(products)
 
     # Deduplicate supplier list by domain/name
     unique_suppliers = []
