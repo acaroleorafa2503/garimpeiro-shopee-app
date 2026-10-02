@@ -71,6 +71,28 @@ with tabs[0]:
             if rows:
                 df=pd.DataFrame(rows)
                 show=["score_radar","classificacao","oportunidade","evidencia_shopee","fontes_confirmando","confirmacoes_secundarias","fornecedores_sinal","fontes","por_que_agora","descricao","url"]
+
+                # Compatibilidade com resultados guardados por versões anteriores do Radar.
+                defaults = {
+                    "score_radar": 0,
+                    "classificacao": "⚪ Reprocessar",
+                    "oportunidade": "",
+                    "evidencia_shopee": "—",
+                    "fontes_confirmando": 1,
+                    "confirmacoes_secundarias": 0,
+                    "fornecedores_sinal": 0,
+                    "fontes": "",
+                    "por_que_agora": "",
+                    "descricao": "",
+                    "url": "",
+                }
+                missing_cols = [c for c in show if c not in df.columns]
+                for c in missing_cols:
+                    df[c] = defaults[c]
+
+                if missing_cols:
+                    st.warning("Este resultado foi gerado por uma versão anterior do Radar. Rode um novo garimpo para aplicar a lógica Shopee‑First e a consolidação de fontes.")
+
                 st.dataframe(df[show],use_container_width=True,hide_index=True,
                     column_config={"url":st.column_config.LinkColumn("Abrir fonte")})
                 st.download_button(
