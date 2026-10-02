@@ -1,0 +1,225 @@
+{
+  "nome": "Garimpeiro Shopee V20 — Garimpeiro OS",
+  "versao": "20.0",
+  "pesos": {
+    "demanda": 12,
+    "tendencia": 8,
+    "sazonalidade": 8,
+    "concorrencia": 8,
+    "margem": 12,
+    "fornecedor": 8,
+    "prontidao": 7,
+    "logistica": 6,
+    "devolucao": 5,
+    "visual": 6,
+    "kit": 6,
+    "recorrencia": 5,
+    "comoditizacao": 4,
+    "escala": 5
+  },
+  "faixas_score": [
+    {
+      "min": 0,
+      "max": 49.99,
+      "classe": "🔴 Descartar"
+    },
+    {
+      "min": 50,
+      "max": 64.99,
+      "classe": "🟠 Manter no radar"
+    },
+    {
+      "min": 65,
+      "max": 74.99,
+      "classe": "🟡 Investigar"
+    },
+    {
+      "min": 75,
+      "max": 84.99,
+      "classe": "🟢 Candidato a teste"
+    },
+    {
+      "min": 85,
+      "max": 100,
+      "classe": "💎 Garimpo forte"
+    }
+  ],
+  "limiares_alerta": {
+    "aceleracao_pct": 20,
+    "queda_pct": -20,
+    "score_forte": 85,
+    "score_teste": 75,
+    "margem_min_pct": 15,
+    "dias_antecipacao_sazonal": 60
+  },
+  "modelos_operacao": {
+    "A": "Revenda pronta",
+    "B": "Kit",
+    "C": "Transformação leve",
+    "D": "Fabricação"
+  },
+  "search_provider_default": "brave",
+  "target_profit_margin_pct": 12,
+  "public_search": {
+    "country": "BR",
+    "search_lang": "pt-br",
+    "count": 10
+  },
+  "learning": {
+    "min_observations_to_calibrate": 20,
+    "max_weight_change_pct_per_run": 15,
+    "shrinkage": 0.35,
+    "min_weight": 1,
+    "max_weight": 20,
+    "performance_target_weights": {
+      "profit_margin": 0.3,
+      "roas": 0.2,
+      "conversion_rate": 0.2,
+      "ctr": 0.1,
+      "return_rate_inverse": 0.1,
+      "sales_velocity": 0.1
+    }
+  },
+  "portfolio": {
+    "min_days_for_action": 3,
+    "scale_score_min": 75,
+    "scale_margin_min_pct": 15,
+    "scale_roas_factor_vs_target": 1.1,
+    "pause_margin_max_pct": 0,
+    "pause_roas_factor_vs_target": 0.75,
+    "reduce_roas_factor_vs_target": 0.9,
+    "supplier_switch_margin_min_gain_pct": 8,
+    "reorder_cover_days": 14,
+    "seasonal_prepare_days": 75,
+    "stockout_risk_days": 7
+  },
+  "cash_inventory": {
+    "default_budget": 3000.0,
+    "default_target_cover_days": 30,
+    "max_cover_days": 60,
+    "min_cover_days": 14,
+    "cash_reserve_pct": 15,
+    "max_product_allocation_pct": 40,
+    "priority_weights": {
+      "portfolio_action": 0.25,
+      "real_margin": 0.2,
+      "real_roas": 0.15,
+      "score": 0.15,
+      "sales_velocity": 0.15,
+      "stockout_risk": 0.1
+    }
+  },
+  "growth": {
+    "planning_horizon_days": 30,
+    "max_growth_step_pct": 25,
+    "min_growth_step_pct": 5,
+    "default_ads_share_of_contribution_pct": 45,
+    "max_ads_budget_growth_pct_per_cycle": 30,
+    "min_stock_cover_after_growth_days": 14,
+    "operational_capacity_orders_per_day": 50,
+    "capacity_warning_pct": 80,
+    "cash_buffer_pct": 15
+  },
+  "scenarios": {
+    "conservador": {
+      "demand_mult": 0.85,
+      "conversion_mult": 0.9,
+      "ad_cost_mult": 1.15,
+      "supplier_cost_mult": 1.05,
+      "seasonality_mult": 0.95
+    },
+    "base": {
+      "demand_mult": 1.0,
+      "conversion_mult": 1.0,
+      "ad_cost_mult": 1.0,
+      "supplier_cost_mult": 1.0,
+      "seasonality_mult": 1.0
+    },
+    "agressivo": {
+      "demand_mult": 1.2,
+      "conversion_mult": 1.1,
+      "ad_cost_mult": 1.1,
+      "supplier_cost_mult": 0.98,
+      "seasonality_mult": 1.1
+    }
+  },
+  "executive": {
+    "critical_alert_severities": [
+      "alta"
+    ],
+    "top_products_limit": 10,
+    "daily_summary_enabled": true
+  },
+  "automation_center": {
+    "enabled": true,
+    "daily_summary_hour": 8,
+    "alert_cooldown_hours": 24,
+    "thresholds": {
+      "stock_cover_days_low": 10,
+      "margin_drop_pct": 20,
+      "roas_below_target_factor": 0.9,
+      "supplier_saving_pct": 8,
+      "seasonal_days_ahead": 60,
+      "score_strong": 85
+    },
+    "channels": {
+      "email": false,
+      "telegram": false,
+      "webhook": false
+    }
+  },
+  "orchestrator": {
+    "auto_create_tasks_from_alerts": true,
+    "require_approval_for": [
+      "ESCALAR",
+      "PAUSAR",
+      "REDUZIR",
+      "TROCAR_FORNECEDOR",
+      "RECOMPRAR_ESTOQUE",
+      "ALTERAR_ORCAMENTO_ADS"
+    ],
+    "default_task_ttl_days": 7,
+    "priorities": [
+      "critica",
+      "alta",
+      "media",
+      "baixa"
+    ]
+  },
+  "executor_assistido": {
+    "require_final_approval": true,
+    "supported_action_drafts": [
+      "RECOMPRAR_ESTOQUE",
+      "TROCAR_FORNECEDOR",
+      "REVISAR_ADS",
+      "ALTERAR_ORCAMENTO_ADS",
+      "PREPARAR_SAZONALIDADE",
+      "AVALIAR_ESCALA",
+      "ESCALAR",
+      "REDUZIR",
+      "PAUSAR",
+      "REVISAR_MARGEM"
+    ]
+  },
+  "action_connector": {
+    "require_explicit_confirmation": true,
+    "channels": [
+      "email",
+      "telegram",
+      "webhook",
+      "csv",
+      "txt"
+    ]
+  },
+  "scheduler": {
+    "enabled": true,
+    "default_timezone": "America/Sao_Paulo"
+  },
+  "forecast": {
+    "default_horizon_days": 30,
+    "min_history_points": 3
+  },
+  "garimpeiro_os": {
+    "edition": "final-integrada"
+  }
+}
