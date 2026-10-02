@@ -3,223 +3,354 @@ from datetime import datetime
 from urllib.parse import urlparse
 from collectors.brave_search import BraveSearchCollector
 
-CATEGORY_LABELS = {
-    "Geral / todas": "GERAL",
-    "Pets": "pets",
-    "Casa e cozinha": "casa cozinha",
-    "Organização": "organizacao",
-    "Beleza": "beleza",
-    "Ferramentas": "ferramentas",
-    "Automotivo": "automotivo",
-    "Esporte e lazer": "esporte lazer",
-    "Bebê e família": "bebe familia",
-    "Eletrônicos e acessórios": "eletronicos acessorios",
+CATEGORY_CONFIG = {
+    "Geral / todas": {
+        "tokens": [],
+        "queries": [
+            "produto pet específico comprar Brasil",
+            "organizador casa produto específico comprar Brasil",
+            "utensílio cozinha produto específico comprar Brasil",
+            "ferramenta compacta produto específico comprar Brasil",
+            "acessório automotivo produto específico comprar Brasil",
+            "acessório beleza produto específico comprar Brasil",
+        ],
+    },
+    "Pets": {
+        "tokens": ["pet","cão","cachorro","gato","coleira","comedouro","bebedouro","tapete higiênico","arranhador","escova","guia","peitoral","brinquedo"],
+        "queries": [
+            "coleira pet comprar atacado Brasil",
+            "tapete higiênico cachorro atacado Brasil",
+            "arranhador gato comprar Brasil",
+            "comedouro pet comprar atacado Brasil",
+            "escova removedora pelos pet comprar Brasil",
+            "brinquedo pet interativo comprar Brasil",
+        ],
+    },
+    "Casa e cozinha": {
+        "tokens": ["cozinha","panela","pote","escorredor","organizador","talher","prateleira","copo","garrafa","pia","geladeira"],
+        "queries": [
+            "organizador panelas comprar Brasil",
+            "escorredor cozinha comprar Brasil",
+            "organizador geladeira comprar Brasil",
+            "pote hermético kit comprar Brasil",
+            "organizador pia comprar Brasil",
+        ],
+    },
+    "Organização": {
+        "tokens": ["organizador","gaveta","armário","guarda roupa","sapato","cabide","caixa organizadora","prateleira"],
+        "queries": [
+            "organizador gaveta comprar Brasil",
+            "organizador guarda roupa comprar Brasil",
+            "organizador sapatos comprar Brasil",
+            "caixa organizadora comprar Brasil",
+        ],
+    },
+    "Beleza": {
+        "tokens": ["beleza","cabelo","maquiagem","skincare","escova","touca","organizador maquiagem","pente","necessaire"],
+        "queries": [
+            "organizador maquiagem comprar Brasil",
+            "acessório cabelo comprar Brasil",
+            "escova cabelo produto comprar Brasil",
+            "necessaire organizadora comprar Brasil",
+        ],
+    },
+    "Ferramentas": {
+        "tokens": ["ferramenta","broca","alicate","chave","furadeira","parafuso","kit reparo","soquete"],
+        "queries": [
+            "kit ferramentas comprar Brasil",
+            "jogo brocas comprar Brasil",
+            "alicate multifuncional comprar Brasil",
+            "kit chave soquete comprar Brasil",
+        ],
+    },
+    "Automotivo": {
+        "tokens": ["carro","automotivo","veículo","porta malas","painel","limpeza carro","suporte celular carro"],
+        "queries": [
+            "organizador porta malas comprar Brasil",
+            "suporte celular carro comprar Brasil",
+            "kit limpeza automotiva comprar Brasil",
+            "organizador banco carro comprar Brasil",
+        ],
+    },
+    "Esporte e lazer": {
+        "tokens": ["treino","academia","corrida","esporte","garrafa","faixa","elástico","bolsa esportiva"],
+        "queries": [
+            "elástico treino comprar Brasil",
+            "acessório academia comprar Brasil",
+            "garrafa esportiva comprar Brasil",
+            "bolsa treino compacta comprar Brasil",
+        ],
+    },
+    "Bebê e família": {
+        "tokens": ["bebê","bebe","mamadeira","fralda","organizador bebê","passeio bebê","alimentação bebê"],
+        "queries": [
+            "organizador bebê comprar Brasil",
+            "acessório alimentação bebê comprar Brasil",
+            "organizador carrinho bebê comprar Brasil",
+            "kit passeio bebê comprar Brasil",
+        ],
+    },
+    "Eletrônicos e acessórios": {
+        "tokens": ["celular","cabo","carregador","suporte","eletrônico","eletronico","fone","adaptador"],
+        "queries": [
+            "suporte celular comprar Brasil",
+            "organizador cabos comprar Brasil",
+            "adaptador usb comprar Brasil",
+            "acessório carregamento comprar Brasil",
+        ],
+    },
 }
 
-CATEGORY_TERMS = {
-    "Pets": ["acessório para cachorro gato","higiene pet","organização alimentação pet","brinquedo pet prático"],
-    "Casa e cozinha": ["utensílio cozinha prático","organizador cozinha","limpeza doméstica produto","acessório casa funcional"],
-    "Organização": ["organizador guarda roupa","organizador cozinha","organizador banheiro","organizador gaveta"],
-    "Beleza": ["acessório cabelo","organizador maquiagem","acessório skincare não eletrônico","acessório beleza portátil"],
-    "Ferramentas": ["ferramenta manual prática","acessório furadeira","kit reparo doméstico","ferramenta compacta manutenção"],
-    "Automotivo": ["organizador automotivo","acessório limpeza carro","acessório interior carro","suporte automotivo"],
-    "Esporte e lazer": ["acessório treino","acessório caminhada corrida","organizador esporte","acessório lazer portátil"],
-    "Bebê e família": ["organizador bebê","acessório alimentação bebê","acessório passeio bebê","produto rotina família"],
-    "Eletrônicos e acessórios": ["suporte celular","organizador cabos","acessório eletrônico pequeno","acessório carregamento organização"],
-}
-
-GENERAL_ROTATION = [
-    ("Pets","acessório pet"),
-    ("Casa e cozinha","utilidade cozinha"),
-    ("Organização","organizador casa"),
-    ("Ferramentas","ferramenta compacta"),
-    ("Automotivo","acessório automotivo"),
-    ("Beleza","acessório beleza"),
-    ("Eletrônicos e acessórios","acessório eletrônico"),
-    ("Esporte e lazer","acessório treino"),
-]
-
-MODE_HINTS = {
-    "Geral": "produto específico com demanda e potencial de revenda",
-    "Sazonalidade": "produto específico com procura sazonal nos próximos meses",
-    "Recorrência": "produto consumível ou de recompra recorrente",
-    "Problema → solução": "produto específico que resolve uma dor prática",
-    "Fornecedor / atacado": "produto específico com atacadista distribuidor ou fabricante",
-}
-
-MARKETPLACE_DOMAINS = ("shopee.com.br","mercadolivre.com.br","amazon.com.br","magazineluiza.com.br","americanas.com.br")
-SUPPLIER_WORDS = ("atacado","distribuidor","distribuidora","fabricante","fábrica","fabrica","fornecedor")
-PRODUCT_WORDS = (
-    "kit","organizador","suporte","tapete","escova","capa","protetor","refil","dispensador",
-    "porta","gancho","caixa","bolsa","estojo","bandeja","prateleira","adaptador","cabo",
-    "filtro","rodo","escorredor","pote","garrafa","comedouro","bebedouro","brinquedo",
-    "arranhador","coleira","guia","luva","almofada","cesto","lixeira","chave","alicate",
-    "broca","jogo","aplicador","removedor","esponja"
+MARKETPLACE_DOMAINS = (
+    "mercadolivre.com.br","amazon.com.br","shopee.com.br",
+    "magazineluiza.com.br","americanas.com.br"
 )
 
-GENERIC_PHRASES = (
-    "produtos mais vendidos","mais vendidos na shopee","mais vendidos na amazon",
-    "produtos em alta","tendências 2026","tendencias 2026","apostas para 2026",
-    "o que vender","ideias de produtos","produtos para vender","melhores produtos",
-    "lista de produtos","guia completo","marketplace -","maior petshop online",
-    "loja online","53 produtos","50 produtos","100 produtos","top 10","top 20",
-    "tiktok shop brasil","categorias mais vendidas"
+SUPPLIER_WORDS = (
+    "atacado","distribuidor","distribuidora","fabricante","fábrica","fabrica",
+    "fornecedor","revenda","caixa fechada"
 )
 
-ARTICLE_DOMAINS = ("blog.","medium.com","uol.com.br","exame.com","shopify.com","nuvemshop.com.br","tray.com.br","sebrae.com.br")
+GENERIC_TITLES = (
+    "acessórios pet","acessorios pet","distribuidora pet shop","atacado de produtos pet",
+    "produtos pet mais vendidos","produtos mais vendidos","mais vendidos online",
+    "loja online","pet shop","marketplace","catálogo","catalogo","categoria",
+    "linha completa","todos os produtos","departamento","ofertas","home"
+)
 
-def _norm(text):
-    return re.sub(r"\s+"," ",(text or "").lower()).strip()
+PRODUCT_NOUNS = (
+    "coleira","tapete","arranhador","comedouro","bebedouro","escova","guia","peitoral","brinquedo",
+    "organizador","suporte","kit","pote","escorredor","prateleira","garrafa","capa","protetor",
+    "refil","dispensador","gancho","estojo","bandeja","adaptador","cabo","filtro","rodo",
+    "caixa","bolsa","lixeira","chave","alicate","broca","jogo","aplicador","removedor",
+    "necessaire","touca","pente","elástico","faixa","mamadeira","fralda"
+)
+
+BRAND_NOISE = (
+    "blog","guia","tendência","tendencia","como escolher","o que vender","ideias",
+    "melhores produtos","mais vendidos","lista de","top 10","top 20","2026"
+)
+
+def _norm(s):
+    return re.sub(r"\s+"," ",(s or "").lower()).strip()
+
+def _domain(url, fallback=""):
+    return (fallback or urlparse(url or "").netloc or "").lower()
 
 def _clean_title(title):
     title = re.sub(r"\s+"," ",title or "").strip()
-    parts = re.split(r"\s+[|–—]\s+", title)
-    if parts and len(parts[0]) >= 8:
-        title = parts[0]
-    return title[:180]
+    # Remove site suffixes and long marketing tails
+    title = re.split(r"\s+[|–—]\s+", title)[0]
+    return title[:160]
 
-def _is_generic(title, desc, domain):
+def _is_generic_page(title, desc, domain):
+    t = _norm(title)
     text = _norm(f"{title} {desc}")
-    if any(p in text for p in GENERIC_PHRASES):
-        return True
-    if any(domain.startswith(d) or d in domain for d in ARTICLE_DOMAINS):
-        if not any(w in _norm(title) for w in PRODUCT_WORDS):
+    if any(x in t for x in GENERIC_TITLES):
+        # allow a generic phrase only if a concrete product noun also appears strongly
+        concrete = sum(1 for p in PRODUCT_NOUNS if p in t)
+        if concrete < 1:
             return True
-    if re.match(r"^(como|por que|porque|quais|o que|guia|tendências|tendencias)\b", _norm(title)):
+    if any(x in text for x in BRAND_NOISE) and not any(p in t for p in PRODUCT_NOUNS):
+        return True
+    if len(t.split()) < 2:
         return True
     return False
 
-def _looks_product(title, desc, domain):
+def _extract_product_name(title, desc):
+    title = _clean_title(title)
+    t = _norm(title)
+    if _is_generic_page(title, desc, ""):
+        return None
+
+    # Prefer titles that contain a concrete product noun.
+    if any(noun in t for noun in PRODUCT_NOUNS):
+        # Strip common supplier/store prefixes.
+        title = re.sub(
+            r"^(distribuidora|distribuidor|atacado|fornecedor|loja|pet shop)\s*[:\-–—]?\s*",
+            "",
+            title,
+            flags=re.I,
+        ).strip()
+        return title if len(title) >= 6 else None
+
+    # If title isn't concrete, try the description's first phrase.
+    first = re.split(r"[.;|]", desc or "")[0].strip()
+    fn = _norm(first)
+    if any(noun in fn for noun in PRODUCT_NOUNS) and 6 <= len(first) <= 150:
+        return first
+    return None
+
+def _is_category_match(category, product_name, desc):
+    if category == "Geral / todas":
+        return True
+    cfg = CATEGORY_CONFIG.get(category, {})
+    tokens = cfg.get("tokens", [])
+    text = _norm(f"{product_name} {desc}")
+    return any(tok in text for tok in tokens)
+
+def _source_kind(domain, text):
+    n = _norm(text)
+    if any(d in domain for d in MARKETPLACE_DOMAINS):
+        return "Marketplace"
+    if any(w in n for w in SUPPLIER_WORDS):
+        return "Fornecedor"
+    return "Fonte pública"
+
+def _score_product(item, category_match=True):
+    title = item.get("product_name","")
+    desc = item.get("description","")
+    domain = item.get("source_domain","")
     text = _norm(f"{title} {desc}")
-    title_n = _norm(title)
-    signals = 0
-    if any(d in domain for d in MARKETPLACE_DOMAINS): signals += 2
-    if any(w in text for w in PRODUCT_WORDS): signals += 2
-    if any(w in text for w in SUPPLIER_WORDS): signals += 1
-    if re.search(r"\bkit\b|\b\d+\s*(pcs|peças|pecas|unidades|cm|mm|ml|l)\b", text): signals += 1
-    if 3 <= len(title_n.split()) <= 18: signals += 1
-    return signals >= 2
-
-def _source_type(domain, text):
-    t=_norm(text)
-    if any(d in domain for d in MARKETPLACE_DOMAINS): return "Marketplace"
-    if any(w in t for w in SUPPLIER_WORDS): return "Fornecedor/atacado"
-    return "Produto/fonte pública"
-
-def build_queries(category="Geral / todas", mode="Geral", max_queries=6):
-    year=datetime.now().year
-    if category=="Geral / todas":
-        seeds=GENERAL_ROTATION
-    else:
-        seeds=[(category,t) for t in CATEGORY_TERMS.get(category,[CATEGORY_LABELS.get(category,category)])]
-
-    q=[]
-    for _,term in seeds:
-        q.extend([
-            f'{term} comprar "mais vendidos" Brasil {year}',
-            f'{term} site:mercadolivre.com.br produto',
-            f'{term} atacado fornecedor distribuidor Brasil',
-            f'{term} kit produto avaliações Brasil',
-        ])
-        if mode=="Sazonalidade":
-            q.append(f'{term} produto sazonal procura próximos meses Brasil {year}')
-        elif mode=="Recorrência":
-            q.append(f'{term} refil consumo recorrente recompra Brasil')
-        elif mode=="Problema → solução":
-            q.append(f'{term} produto solução problema avaliações reclamações')
-        elif mode=="Fornecedor / atacado":
-            q.append(f'{term} fabricante atacado preço caixa fechada Brasil')
-
-    seen=[]; used=set()
-    for x in q:
-        if x not in used:
-            seen.append(x); used.add(x)
-    return seen[:max(1,int(max_queries))]
-
-def _score(item, query, rank):
-    title=item.get("title","")
-    desc=item.get("description","")
-    domain=(item.get("source_domain") or "").lower()
-    text=_norm(f"{title} {desc}")
-    score=42; reasons=[]
+    score = 45
+    reasons = []
 
     if any(d in domain for d in MARKETPLACE_DOMAINS):
-        score += 15; reasons.append("página de marketplace")
-    if any(w in text for w in PRODUCT_WORDS):
-        score += 12; reasons.append("produto específico")
+        score += 15; reasons.append("marketplace")
     if any(w in text for w in SUPPLIER_WORDS):
-        score += 10; reasons.append("sinal de fornecedor")
+        score += 10; reasons.append("fornecedor")
+    if any(noun in _norm(title) for noun in PRODUCT_NOUNS):
+        score += 12; reasons.append("produto específico")
     if "kit" in text:
-        score += 5; reasons.append("potencial de kit")
-    if "avalia" in text:
-        score += 4; reasons.append("sinal de avaliações")
-    if "mais vendido" in text or "vendidos" in text:
-        score += 7; reasons.append("sinal de demanda")
+        score += 5; reasons.append("kit")
     if re.search(r"r\$\s?\d+|preço|preco", text):
-        score += 4; reasons.append("sinal de preço")
-    score += max(0,8-int(rank or 10))
-    return min(100,max(0,score)), list(dict.fromkeys(reasons))[:4]
+        score += 5; reasons.append("preço")
+    if "avalia" in text or "estrela" in text:
+        score += 5; reasons.append("avaliações")
+    if category_match:
+        score += 5; reasons.append("categoria coerente")
+    rank = item.get("rank") or 10
+    score += max(0, 8-int(rank))
+    return min(score,100), reasons[:5]
 
 def classification(score):
-    if score>=82: return "🔥 Prioridade alta"
-    if score>=70: return "🟢 Investigar agora"
-    if score>=58: return "🟡 Radar"
+    if score >= 82: return "🔥 Prioridade alta"
+    if score >= 70: return "🟢 Investigar agora"
+    if score >= 58: return "🟡 Radar"
     return "⚪ Baixa prioridade"
 
-def _why(reasons, source_type):
-    if reasons:
-        return f"{source_type}: " + ", ".join(reasons) + ". Validar margem, concorrência e logística."
-    return f"{source_type}. Validar demanda, fornecedor, margem, concorrência e logística."
+def build_queries(category, mode, max_queries):
+    cfg = CATEGORY_CONFIG.get(category, CATEGORY_CONFIG["Geral / todas"])
+    base = list(cfg.get("queries", []))
+    if mode == "Fornecedor / atacado":
+        base = [q.replace("comprar Brasil","atacado fornecedor Brasil") for q in base]
+    elif mode == "Recorrência":
+        base = [q + " refil recompra recorrente" for q in base]
+    elif mode == "Problema → solução":
+        base = [q + " resolve problema avaliações" for q in base]
+    elif mode == "Sazonalidade":
+        year = datetime.now().year
+        base = [q + f" sazonal próximos meses {year}" for q in base]
+
+    if not base:
+        base = ["produto específico comprar Brasil"]
+    return base[:max(1,int(max_queries))]
 
 def run_opportunity_radar(category="Geral / todas", mode="Geral", max_queries=6, results_per_query=8):
-    collector=BraveSearchCollector(count=max(1,min(20,int(results_per_query))))
+    collector = BraveSearchCollector(count=max(1,min(20,int(results_per_query))))
     if not collector.enabled():
-        return {"enabled":False,"message":"BRAVE_SEARCH_API_KEY não configurada.","queries_used":0,"rows":[]}
+        return {
+            "enabled": False,
+            "message": "BRAVE_SEARCH_API_KEY não configurada.",
+            "queries_used": 0,
+            "rows": [],
+            "suppliers": [],
+        }
 
-    queries=build_queries(category,mode,max_queries)
-    rows=[]; errors=[]; seen=set(); discarded_generic=0
+    queries = build_queries(category, mode, max_queries)
+    products = []
+    suppliers = []
+    seen_products = set()
+    seen_urls = set()
+    discarded_generic = 0
+    discarded_category = 0
+    errors = []
 
     for query in queries:
         try:
-            results=collector.search(query)
+            results = collector.search(query)
         except Exception as exc:
             errors.append(f"{query}: {exc}")
             continue
 
-        for item in results:
-            url=item.get("url","")
-            if not url or url in seen:
+        for r in results:
+            url = r.get("url","")
+            if not url or url in seen_urls:
                 continue
-            seen.add(url)
-            title=_clean_title(item.get("title",""))
-            desc=item.get("description","") or ""
-            domain=(item.get("source_domain") or urlparse(url).netloc).lower()
+            seen_urls.add(url)
 
-            if _is_generic(title,desc,domain) or not _looks_product(title,desc,domain):
+            title = _clean_title(r.get("title",""))
+            desc = r.get("description","") or ""
+            domain = _domain(url, r.get("source_domain",""))
+
+            # Store supplier source separately, but never score it as a product by itself.
+            text = _norm(f"{title} {desc}")
+            if any(w in text for w in SUPPLIER_WORDS):
+                suppliers.append({
+                    "fornecedor": title,
+                    "fonte": domain,
+                    "url": url,
+                    "consulta": query,
+                })
+
+            if _is_generic_page(title, desc, domain):
                 discarded_generic += 1
                 continue
 
-            score,reasons=_score(item,query,item.get("rank",10))
-            stype=_source_type(domain,f"{title} {desc}")
-            rows.append({
-                "score_radar":score,
-                "classificacao":classification(score),
-                "oportunidade":title,
-                "por_que_agora":_why(reasons,stype),
-                "fonte":domain,
-                "url":url,
-                "consulta":query,
-                "descricao":desc[:400],
-                "rank_fonte":item.get("rank"),
+            product_name = _extract_product_name(title, desc)
+            if not product_name:
+                discarded_generic += 1
+                continue
+
+            if not _is_category_match(category, product_name, desc):
+                discarded_category += 1
+                continue
+
+            key = _norm(product_name)
+            if key in seen_products:
+                continue
+            seen_products.add(key)
+
+            item = {
+                "product_name": product_name,
+                "description": desc,
+                "source_domain": domain,
+                "rank": r.get("rank",10),
+            }
+            score, reasons = _score_product(item, True)
+
+            products.append({
+                "score_radar": score,
+                "classificacao": classification(score),
+                "produto": product_name,
+                "tipo_fonte": _source_kind(domain, text),
+                "por_que_agora": ", ".join(reasons) if reasons else "produto específico encontrado",
+                "fonte": domain,
+                "url": url,
+                "descricao": desc[:350],
+                "consulta": query,
             })
 
-    rows.sort(key=lambda x:(x["score_radar"],-(x.get("rank_fonte") or 99)),reverse=True)
+    products.sort(key=lambda x: x["score_radar"], reverse=True)
+
+    # Deduplicate supplier list by domain/name
+    unique_suppliers = []
+    supplier_keys = set()
+    for s in suppliers:
+        k = (_norm(s["fornecedor"]), s["fonte"])
+        if k not in supplier_keys:
+            supplier_keys.add(k)
+            unique_suppliers.append(s)
+
     return {
-        "enabled":True,
-        "message":"Garimpo de produtos concluído.",
-        "queries_used":len(queries),
-        "results_found":len(rows),
-        "generic_discarded":discarded_generic,
-        "errors":errors,
-        "rows":rows,
+        "enabled": True,
+        "message": "Garimpo de produtos concluído.",
+        "queries_used": len(queries),
+        "results_found": len(products),
+        "suppliers_found": len(unique_suppliers),
+        "generic_discarded": discarded_generic,
+        "category_discarded": discarded_category,
+        "errors": errors,
+        "rows": products,
+        "suppliers": unique_suppliers,
     }
