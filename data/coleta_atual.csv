@@ -1,0 +1,4 @@
+﻿name,price_avg,demand_signal,competitor_count,review_signal,supplier_cost,shipping_in,packaging,marketplace_pct,marketplace_fixed,tax_pct,discount_pct,ads_pct,losses_pct,target_profit_margin_pct,demanda,concorrencia,margem,fornecedor,prontidao,logistica,devolucao,visual,kit,recorrencia,comoditizacao,escala
+Arranhador adesivo para gatos,29.90,100,35,4.8,8.00,1.50,1.00,14,0,0,3,10,2,12,9,8,8,6,5,10,8,10,10,4,7,8
+Tapete higiênico para cães,59.90,110,42,4.7,34.90,2.00,1.00,14,0,0,3,10,2,12,9,5,5,5,10,5,8,6,8,10,2,9
+Organizador ajustável de panelas,59.90,80,28,4.8,24.00,3.00,1.50,14,0,0,3,10,2,12,7,7,7,6,9,6,8,10,5,3,5,8
