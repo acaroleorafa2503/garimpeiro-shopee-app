@@ -288,6 +288,12 @@ def build_queries(category, mode, max_queries):
             seen.append(q); used.add(q)
     return seen[:max(1,int(max_queries))]
 
+
+STOPWORDS = {
+    "de","da","do","das","dos","para","com","em","na","no","nas","nos","por","e","a","o",
+    "the","brasil","amazon","mercado","livre","magalu","magazine","luiza","shop","loja","online"
+}
+
 def _canonical_tokens(name):
     n = _norm(name)
     # Remove marketplace/site tails and model-only noise.
