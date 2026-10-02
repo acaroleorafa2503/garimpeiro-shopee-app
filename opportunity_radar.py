@@ -101,6 +101,17 @@ CATEGORY_CONFIG = {
     },
 }
 
+
+# Compatibilidade com o app.py atual
+CATEGORY_LABELS = {name: name for name in CATEGORY_CONFIG.keys()}
+MODE_HINTS = {
+    "Geral": "Busca equilibrada de produtos específicos",
+    "Sazonalidade": "Prioriza oportunidades ligadas aos próximos meses",
+    "Recorrência": "Prioriza produtos com recompra/refil",
+    "Problema → solução": "Prioriza produtos que resolvem dores práticas",
+    "Fornecedor / atacado": "Prioriza sinais de fabricante, distribuidor e atacado",
+}
+
 MARKETPLACE_DOMAINS = (
     "mercadolivre.com.br","amazon.com.br","shopee.com.br",
     "magazineluiza.com.br","americanas.com.br"
@@ -319,11 +330,13 @@ def run_opportunity_radar(category="Geral / todas", mode="Geral", max_queries=6,
             }
             score, reasons = _score_product(item, True)
 
+            source_kind = _source_kind(domain, text)
             products.append({
                 "score_radar": score,
                 "classificacao": classification(score),
                 "produto": product_name,
-                "tipo_fonte": _source_kind(domain, text),
+                "oportunidade": product_name,
+                "tipo_fonte": source_kind,
                 "por_que_agora": ", ".join(reasons) if reasons else "produto específico encontrado",
                 "fonte": domain,
                 "url": url,
