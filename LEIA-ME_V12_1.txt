@@ -1,0 +1,9 @@
+GARIMPEIRO V12.1 — AUTOPREENCHIMENTO DO FORNECEDOR
+
+Correção:
+- Ao salvar um fornecedor 1688, o preço de atacado e MOQ são enviados imediatamente ao módulo Custo Posto no Brasil.
+- Um novo fornecedor substitui corretamente os valores antigos dos widgets.
+- Exibe resumo do fornecedor salvo, preço 1688, MOQ e compatibilidade.
+- Faz rerun automático após salvar o fornecedor para atualizar a tela.
+
+Não altera Secrets.

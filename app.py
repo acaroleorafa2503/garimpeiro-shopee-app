@@ -487,7 +487,15 @@ else:
                                     "produto_shopee": _candidate_1688,
                                     **p
                                 }
-                                st.success("Fornecedor 1688 guardado como candidato. Ainda falta calcular custo posto no Brasil.")
+                                # Seed landed-cost fields immediately so Streamlit widgets
+                                # receive the selected supplier data on the next rerun.
+                                st.session_state["landed_wholesale"] = float(p.get("preco_atacado") or 0.0)
+                                st.session_state["landed_qty"] = max(int(p.get("moq") or 1), 1)
+                                st.session_state["landed_currency"] = p.get("moeda") or "CNY"
+                                st.session_state["landed_supplier_name"] = p.get("empresa") or "Fornecedor 1688"
+                                st.session_state["landed_product_name"] = p.get("titulo_1688") or ""
+                                st.success("Fornecedor 1688 guardado. Preço e MOQ enviados automaticamente para o Custo Posto no Brasil.")
+                                st.rerun()
                                 break
 
             saved1688 = st.session_state.get("supplier_1688_candidate")
@@ -519,18 +527,34 @@ else:
     moq = int(saved1688.get("moq") or 1)
     currency = saved1688.get("moeda") or "CNY"
 
+    s1,s2,s3,s4 = st.columns(4)
+    s1.metric("Fornecedor", saved1688.get("empresa") or "Fornecedor 1688")
+    s2.metric("Preço 1688", f"{float(wh):.2f} {currency}" if isinstance(wh,(int,float)) else "Sem dado")
+    s3.metric("MOQ", max(moq,1))
+    s4.metric("Compatibilidade", f"{saved1688.get('compatibilidade',0)}%")
+
     c1,c2,c3 = st.columns(3)
+    if "landed_wholesale" not in st.session_state:
+        st.session_state["landed_wholesale"] = float(wh or 0)
+    if "landed_qty" not in st.session_state:
+        st.session_state["landed_qty"] = max(moq, 1)
+
+    # Keep fields synchronized with a newly-selected supplier.
+    current_supplier_key = f"{saved1688.get('offer_id','')}|{saved1688.get('empresa','')}|{saved1688.get('preco_atacado','')}|{saved1688.get('moq','')}"
+    if st.session_state.get("_landed_supplier_key") != current_supplier_key:
+        st.session_state["_landed_supplier_key"] = current_supplier_key
+        st.session_state["landed_wholesale"] = float(wh or 0)
+        st.session_state["landed_qty"] = max(moq, 1)
+
     wholesale_cny = c1.number_input(
         f"Preço unitário fornecedor ({currency})",
         min_value=0.0,
-        value=float(wh or 0),
         step=0.10,
         key="landed_wholesale"
     )
     qty = c2.number_input(
         "Quantidade do lote",
         min_value=1,
-        value=max(moq, 1),
         step=1,
         key="landed_qty"
     )
