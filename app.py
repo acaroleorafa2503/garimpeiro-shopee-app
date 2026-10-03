@@ -1,3 +1,5 @@
+from selfcheck import run_selfcheck
+from auto_discovery import CATEGORY_SEEDS, discovery_plan, merge_discovery_results, rank_discovered, estimated_calls, discovery_run_summary, top_candidates
 from scale_radar import save_snapshot, scale_signal, competitor_vulnerability, forecast_from_signal, build_alerts
 from landed_cost import landed_cost_brazil, profitability
 import streamlit as st
@@ -100,6 +102,14 @@ from auto_collector import refresh_registry, merge_rows
 st.set_page_config(page_title="Garimpeiro OS V20",layout="wide")
 init_db()
 st.title("🚀 Garimpeiro Shopee V20 — Garimpeiro OS")
+
+with st.expander("🧪 Diagnóstico da versão"):
+    _sc=run_selfcheck()
+    if _sc.get("ok"):
+        st.success("Estrutura principal carregada corretamente.")
+    else:
+        st.error("Há falha estrutural nesta versão.")
+    st.json(_sc)
 st.caption("Sistema integrado de garimpo, decisão, caixa, estoque, Ads, sazonalidade e execução assistida.")
 
 s=build_executive_summary(); k=s["kpis"]
@@ -126,6 +136,146 @@ tabs=st.tabs([
 
 with tabs[0]:
 
+
+    st.subheader("🤖 Garimpo Automático — Descoberta")
+    st.caption("Modo principal: o robô percorre categorias sozinho, encontra produtos reais da Shopee e monta um ranking geral.")
+
+    _auto_cats=st.multiselect(
+        "Categorias para varrer",
+        list(CATEGORY_SEEDS.keys()),
+        default=list(CATEGORY_SEEDS.keys()),
+        key="auto_discovery_categories"
+    )
+
+    _a1,_a2,_a3=st.columns(3)
+    _auto_depth=_a1.selectbox("Profundidade",["Rápido","Normal","Profundo"],index=0,key="auto_discovery_depth")
+    _auto_results=_a2.selectbox("Produtos por busca",[10,20,30],index=0,key="auto_discovery_results")
+    _auto_sort=_a3.selectbox("Priorizar",["Mais vendidos (30 dias)","Mais avaliações","Melhor avaliação"],index=0,key="auto_discovery_sort")
+
+    _plan=discovery_plan(_auto_cats,_auto_depth)
+    st.caption(f"Esta rodada fará até {estimated_calls(_auto_cats,_auto_depth)} chamadas Nexscope. Confira seus créditos antes de iniciar.")
+
+    if st.button("🤖 Iniciar Garimpo Automático",type="primary",key="auto_discovery_run"):
+        if not _auto_cats:
+            st.warning("Selecione pelo menos uma categoria.")
+        else:
+            _batches=[]
+            _errors=[]
+            _progress=st.progress(0)
+            _status=st.empty()
+            _sort_map={"Mais vendidos (30 dias)":"sold","Mais avaliações":"ratings","Melhor avaliação":"rating"}
+
+            for _i,_job in enumerate(_plan,start=1):
+                _status.write(f"Buscando {_job['category']} → {_job['keyword']} ({_i}/{len(_plan)})")
+                try:
+                    _res=search_products(
+                        keyword=_job["keyword"],
+                        station="BR",
+                        page=1,
+                        page_size=int(_auto_results),
+                        keyword_type=2,
+                        order_by=_sort_map[_auto_sort],
+                        order_by_type="DESC",
+                    )
+                    if _res.get("ok"):
+                        _products=_res.get("products",[])
+                        try:
+                            save_snapshot(_products)
+                        except Exception:
+                            pass
+                        _batches.append({"category":_job["category"],"keyword":_job["keyword"],"products":_products})
+                    else:
+                        _errors.append(f"{_job['keyword']}: {_res.get('error','erro')}")
+                except Exception as _e:
+                    _errors.append(f"{_job['keyword']}: {_e}")
+                _progress.progress(_i/max(1,len(_plan)))
+
+            _merged=merge_discovery_results(_batches)
+            _ranked=rank_discovered(_merged)
+            st.session_state["auto_discovery_ranked"]=_ranked
+            st.session_state["auto_discovery_errors"]=_errors
+            _status.empty()
+
+    _auto_ranked=st.session_state.get("auto_discovery_ranked") or []
+    _auto_errors=st.session_state.get("auto_discovery_errors") or []
+
+    if _auto_ranked:
+        _m1,_m2,_m3,_m4=st.columns(4)
+        _m1.metric("Produtos únicos",len(_auto_ranked))
+        _m2.metric("Prioridade alta",len([r for r in _auto_ranked if r["score_oportunidade"]>=80]))
+        _m3.metric("Para investigar",len([r for r in _auto_ranked if 65<=r["score_oportunidade"]<80]))
+        _m4.metric("Com histórico",len([r for r in _auto_ranked if r["snapshots"]>=2]))
+
+        st.markdown("#### 🏆 Top oportunidades encontradas")
+        _dfa=pd.DataFrame(_auto_ranked)
+        _cols=["score_oportunidade","prioridade","momento","score_escala","snapshots","produto","preco","vendidos_30d","avaliacao","qtd_avaliacoes","loja","categorias","por_que","url"]
+        st.dataframe(_dfa[_cols],use_container_width=True,hide_index=True,column_config={"url":st.column_config.LinkColumn("Abrir na Shopee")})
+
+        _names=[r["produto"] for r in _auto_ranked[:50]]
+        _sel=st.selectbox("Produto descoberto para aprofundar",_names,key="auto_discovery_selected")
+        _chosen=next((r for r in _auto_ranked if r["produto"]==_sel),None)
+
+        if _chosen:
+            st.info(f"Score: {_chosen['score_oportunidade']} | Momento: {_chosen['momento']} | Vendas 30d: {_chosen['vendidos_30d']} | {_chosen['por_que']}")
+
+            if st.button("➡️ Enviar oportunidade para investigação",key="auto_send_investigation"):
+                _p=_chosen["_product"]
+                _row={
+                    "score_radar":_chosen["score_oportunidade"],
+                    "classificacao":_chosen["prioridade"],
+                    "oportunidade":_p.get("produto",""),
+                    "evidencia_shopee":"✅ Sim",
+                    "fontes_confirmando":1,
+                    "confirmacoes_secundarias":0,
+                    "fornecedores_sinal":0,
+                    "fontes":"Descoberta automática + Shopee via Nexscope",
+                    "por_que_agora":_chosen["por_que"],
+                    "descricao":f"Preço R$ {_p.get('preco')} | Vendidos 30d {_p.get('vendidos_30d')} | Avaliação {_p.get('avaliacao')}",
+                    "url":_p.get("url",""),
+                }
+                _cur=st.session_state.get("radar_result") or {}
+                _rows=_cur.get("rows",[]) if isinstance(_cur,dict) else []
+                _rows=[x for x in _rows if x.get("oportunidade")!=_row["oportunidade"]]
+                _rows.insert(0,_row)
+                st.session_state["radar_result"]={
+                    "enabled":True,
+                    "message":"Oportunidade automática enviada para investigação.",
+                    "queries_used":0,
+                    "results_found":len(_rows),
+                    "rows":_rows,
+                    "suppliers":_cur.get("suppliers",[]) if isinstance(_cur,dict) else [],
+                }
+                st.session_state["nexscope_result"]={
+                    "ok":True,
+                    "products":[x["_product"] for x in _auto_ranked],
+                    "summary":{"total_size":len(_auto_ranked)}
+                }
+                st.success("Produto enviado para o Investigador Automático.")
+
+    if _auto_errors:
+        with st.expander(f"⚠️ {len(_auto_errors)} buscas tiveram erro"):
+            for _err in _auto_errors:
+                st.write(_err)
+
+    st.divider()
+
+    st.markdown("#### ✅ Status do Garimpeiro Automático")
+    _summary_auto=st.session_state.get("auto_discovery_summary")
+    _run_at=st.session_state.get("auto_discovery_run_at")
+    if _summary_auto:
+        _s1,_s2,_s3,_s4,_s5=st.columns(5)
+        _s1.metric("Produtos únicos",_summary_auto.get("unique_products",0))
+        _s2.metric("Prioridade alta",_summary_auto.get("priority_high",0))
+        _s3.metric("Investigar",_summary_auto.get("investigate",0))
+        _s4.metric("Com histórico",_summary_auto.get("with_history",0))
+        _s5.metric("Erros",_summary_auto.get("errors",0))
+        if _run_at:
+            st.caption(f"Última varredura registrada: {_run_at}")
+    else:
+        st.caption("Nenhuma varredura automática executada nesta sessão.")
+
+    st.caption("O modo manual abaixo fica apenas para uma investigação específica; o fluxo principal é o Garimpo Automático.")
+    st.divider()
     st.subheader("🛒 Shopee Real — Nexscope")
     st.caption("Busca direta de produtos reais da Shopee Brasil. A Brave continua apenas como apoio para fornecedores e contexto.")
 

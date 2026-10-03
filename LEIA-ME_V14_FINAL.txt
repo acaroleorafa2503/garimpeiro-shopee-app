@@ -1,0 +1,35 @@
+GARIMPEIRO V14 FINAL — DESCOBERTA AUTOMÁTICA CONSOLIDADA
+
+MODO PRINCIPAL
+O Garimpeiro não depende de palavra-chave manual para começar.
+Ele varre categorias automaticamente e monta um ranking de oportunidades.
+
+FLUXO
+1. Escolher categorias.
+2. Escolher profundidade.
+3. Ver quantas chamadas Nexscope serão feitas.
+4. Rodar Garimpo Automático.
+5. Deduplicar produtos.
+6. Salvar snapshots históricos.
+7. Montar ranking geral.
+8. Selecionar oportunidade.
+9. Enviar ao Investigador com os dados estruturados da Shopee preservados.
+
+VALIDAÇÃO FEITA
+- app.py compilado.
+- auto_discovery.py compilado.
+- scale_radar.py compilado.
+- nexscope_shopee.py carregado.
+- selfcheck interno aprovado.
+- contagem de chamadas validada.
+- deduplicação validada.
+- histórico e ranking validados com dados simulados.
+- resumo de execução validado.
+
+OBSERVAÇÃO
+A API Nexscope real não foi consumida durante a validação local para não gastar créditos.
+O teste real acontece quando você clicar no Garimpo Automático no app.
+
+PRÓXIMA ETAPA DO PROJETO
+Cérebro de anúncio:
+produto aprovado -> concorrentes vulneráveis -> estratégia de anúncio -> previsão -> alertas -> auditoria -> resumo executivo.

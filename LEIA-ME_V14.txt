@@ -1,0 +1,14 @@
+GARIMPEIRO V14 — GARIMPO AUTOMÁTICO DE DESCOBERTA
+
+- Não exige palavra-chave.
+- Varre categorias automaticamente.
+- Busca produtos reais na Shopee via Nexscope.
+- Salva snapshots de histórico.
+- Remove duplicados.
+- Monta ranking geral de oportunidades.
+- Permite enviar um produto direto ao Investigador.
+
+Profundidade:
+Rápido: 2 buscas por categoria.
+Normal: 3 buscas por categoria.
+Profundo: 5 buscas por categoria.
