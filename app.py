@@ -19,6 +19,7 @@ from supplier_hunter import hunt_suppliers
 from final_evaluator import evaluate_product
 from price_intelligence import analyze_price_cost
 from product_identity import extract_identity
+from data_connectors import read_csv_file, combine_structured_data, SHOPEE_REQUIRED, SUPPLIER_REQUIRED
 
 st.set_page_config(page_title="Garimpeiro OS V20",layout="wide")
 init_db()
@@ -257,6 +258,54 @@ else:
 
 
 
+
+
+st.divider()
+st.subheader("🔌 Conector de Dados Shopee + Fornecedores")
+st.caption("Importe CSVs estruturados para alimentar preço, vendidos, avaliações, custo, MOQ e frete. O Garimpeiro cruza os dados com a identidade do produto e ignora itens incompatíveis.")
+
+c1,c2=st.columns(2)
+shopee_file=c1.file_uploader("CSV Shopee",type=["csv"],key="csv_shopee")
+supplier_file=c2.file_uploader("CSV Fornecedores",type=["csv"],key="csv_suppliers")
+
+if shopee_file is not None:
+    sh_rows,sh_missing=read_csv_file(shopee_file,SHOPEE_REQUIRED)
+    if sh_missing:
+        st.error("CSV Shopee sem colunas obrigatórias: "+", ".join(sh_missing))
+    else:
+        st.session_state["structured_shopee_rows"]=sh_rows
+        st.success(f"CSV Shopee carregado: {len(sh_rows)} linhas.")
+
+if supplier_file is not None:
+    su_rows,su_missing=read_csv_file(supplier_file,SUPPLIER_REQUIRED)
+    if su_missing:
+        st.error("CSV Fornecedores sem colunas obrigatórias: "+", ".join(su_missing))
+    else:
+        st.session_state["structured_supplier_rows"]=su_rows
+        st.success(f"CSV Fornecedores carregado: {len(su_rows)} linhas.")
+
+conn_radar=st.session_state.get("radar_result") or {}
+conn_candidates=[x.get("oportunidade","") for x in conn_radar.get("rows",[]) if isinstance(x,dict) and x.get("oportunidade")] if isinstance(conn_radar,dict) else []
+conn_candidates=list(dict.fromkeys(conn_candidates))
+
+if conn_candidates:
+    connector_product=st.selectbox("Produto para cruzar dados",conn_candidates,key="connector_product")
+    structured=combine_structured_data(connector_product,st.session_state.get("structured_shopee_rows",[]),st.session_state.get("structured_supplier_rows",[]))
+    st.session_state["structured_result"]=structured
+    a,b,c,d=st.columns(4)
+    a.metric("Anúncios Shopee compatíveis",structured["shopee"]["count"])
+    b.metric("Preço Shopee mediano",f"R$ {structured['auto_sale_price']:.2f}" if structured.get("auto_sale_price") else "Sem dado")
+    c.metric("Fornecedores compatíveis",structured["suppliers"]["count"])
+    d.metric("Menor custo",f"R$ {structured['auto_cost_price']:.2f}" if structured.get("auto_cost_price") else "Sem dado")
+    if structured["shopee"]["matches"]:
+        with st.expander("Dados Shopee compatíveis"):
+            st.dataframe(pd.DataFrame(structured["shopee"]["matches"]),use_container_width=True,hide_index=True,column_config={"link":st.column_config.LinkColumn("Abrir")})
+    if structured["suppliers"]["matches"]:
+        with st.expander("Fornecedores compatíveis"):
+            st.dataframe(pd.DataFrame(structured["suppliers"]["matches"]),use_container_width=True,hide_index=True,column_config={"link":st.column_config.LinkColumn("Abrir")})
+else:
+    st.info("Depois que o Radar encontrar um produto, os CSVs serão cruzados automaticamente com ele.")
+
 st.divider()
 st.subheader("💰 Inteligência de Preço e Custo")
 st.caption("Busca faixas públicas de preço na Shopee, fornecedores e outros marketplaces. Preços de kit/lote são separados para evitar tratar total de caixa como custo unitário.")
@@ -341,20 +390,20 @@ else:
     inv_current = inv_res if isinstance(inv_res,dict) and inv_res.get("product")==selected_final else {}
     hunt_current = hunt_res if isinstance(hunt_res,dict) and hunt_res.get("product")==selected_final else {}
 
-    price_current = st.session_state.get("price_intel_result") or {}
+    structured_current=st.session_state.get("structured_result") or {}
+    if not isinstance(structured_current,dict) or structured_current.get("product")!=selected_final:
+        structured_current={}
+    price_current=st.session_state.get("price_intel_result") or {}
     if not isinstance(price_current,dict) or price_current.get("product")!=selected_final:
-        price_current = {}
-
-    auto_sale = (price_current.get("auto_sale_price") or
-                 ((inv_current.get("preco_shopee") or {}).get("median") or 0))
-    auto_cost = (price_current.get("auto_cost_price") or
-                 ((hunt_current.get("price_stats") or {}).get("min") or
-                  (inv_current.get("preco_fornecedor") or {}).get("min") or 0))
-    auto_moq = 0
-    for rr in hunt_current.get("rows",[]) if isinstance(hunt_current,dict) else []:
-        if rr.get("moq_estimado"):
-            auto_moq = rr["moq_estimado"]
-            break
+        price_current={}
+    auto_sale=(structured_current.get("auto_sale_price") or price_current.get("auto_sale_price") or ((inv_current.get("preco_shopee") or {}).get("median") or 0))
+    auto_cost=(structured_current.get("auto_cost_price") or price_current.get("auto_cost_price") or ((hunt_current.get("price_stats") or {}).get("min") or (inv_current.get("preco_fornecedor") or {}).get("min") or 0))
+    auto_moq=int(structured_current.get("auto_moq") or 0)
+    if not auto_moq:
+        for rr in hunt_current.get("rows",[]) if isinstance(hunt_current,dict) else []:
+            if rr.get("moq_estimado"):
+                auto_moq=rr["moq_estimado"]
+                break
 
     confirmed_supplier = (hunt_current.get("suppliers_confirmed",0) or 0) > 0
     shopee_evidence = str(radar_row.get("evidencia_shopee","")).startswith("✅") or inv_current.get("shopee_evidencias",0)>0
@@ -367,7 +416,8 @@ else:
     f1,f2,f3,f4=st.columns(4)
     sale_price=f1.number_input("Preço de venda (R$)",min_value=0.0,value=float(auto_sale),step=1.0,key="final_sale")
     product_cost=f2.number_input("Custo produto (R$)",min_value=0.0,value=float(auto_cost),step=1.0,key="final_cost")
-    inbound=f3.number_input("Frete de entrada/unidade (R$)",min_value=0.0,value=0.0,step=0.5,key="final_inbound")
+    auto_inbound=float(structured_current.get("auto_inbound_freight") or 0)
+    inbound=f3.number_input("Frete de entrada/unidade (R$)",min_value=0.0,value=auto_inbound,step=0.5,key="final_inbound")
     packaging=f4.number_input("Embalagem/unidade (R$)",min_value=0.0,value=1.5,step=0.5,key="final_pack")
 
     p1,p2,p3,p4=st.columns(4)

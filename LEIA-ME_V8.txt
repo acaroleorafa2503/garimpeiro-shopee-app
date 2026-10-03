@@ -1,0 +1,4 @@
+GARIMPEIRO V8 — CONECTOR DE DADOS
+CSV Shopee: produto,preco,vendidos,avaliacoes,loja,link
+CSV Fornecedores: produto,fornecedor,custo,moq,frete,link
+O sistema cruza os dados com a identidade do produto e alimenta automaticamente preço, custo, MOQ e frete na decisão final.
