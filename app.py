@@ -16,6 +16,7 @@ from backup_audit import backup,integrity_check
 from opportunity_radar import run_opportunity_radar, CATEGORY_LABELS, MODE_HINTS
 from deep_investigator import investigate_product
 from supplier_hunter import hunt_suppliers
+from final_evaluator import evaluate_product
 
 st.set_page_config(page_title="Garimpeiro OS V20",layout="wide")
 init_db()
@@ -227,7 +228,6 @@ else:
             hB.metric("Confirmados",hunt.get("suppliers_confirmed",0))
             hC.metric("Possíveis",hunt.get("suppliers_possible",0))
             hD.metric("Buscas usadas",hunt.get("queries_used",0))
-
             ps_h=hunt.get("price_stats",{})
             hp1,hp2=st.columns(2)
             hp1.metric("Menor preço público",f"R$ {ps_h['min']:.2f}" if ps_h.get("min") else "Sem dado")
@@ -252,6 +252,104 @@ else:
             if hunt.get("errors"):
                 with st.expander("Erros de algumas consultas de fornecedor"):
                     st.write(hunt["errors"])
+
+
+st.divider()
+st.subheader("🧮 Decisão Final e Plano de Teste")
+st.caption("Use os dados encontrados pelo robô e complete apenas o que não estiver disponível publicamente. Taxas e custos ficam como entradas editáveis para evitar suposições incorretas.")
+
+radar_res = st.session_state.get("radar_result") or {}
+inv_res = st.session_state.get("investigation_result") or {}
+hunt_res = st.session_state.get("supplier_hunt_result") or {}
+
+final_candidates = [
+    x.get("oportunidade","") for x in radar_res.get("rows",[])
+    if isinstance(x,dict) and x.get("oportunidade")
+] if isinstance(radar_res,dict) else []
+final_candidates=list(dict.fromkeys(final_candidates))
+
+if not final_candidates:
+    st.info("O cálculo final será liberado depois que o Radar encontrar pelo menos um produto.")
+else:
+    selected_final = st.selectbox("Produto para decisão final", final_candidates, key="final_product")
+
+    radar_row = next((x for x in radar_res.get("rows",[]) if x.get("oportunidade")==selected_final), {})
+    inv_current = inv_res if isinstance(inv_res,dict) and inv_res.get("product")==selected_final else {}
+    hunt_current = hunt_res if isinstance(hunt_res,dict) and hunt_res.get("product")==selected_final else {}
+
+    auto_sale = ((inv_current.get("preco_shopee") or {}).get("median") or 0)
+    auto_cost = ((hunt_current.get("price_stats") or {}).get("min") or
+                 (inv_current.get("preco_fornecedor") or {}).get("min") or 0)
+    auto_moq = 0
+    for rr in hunt_current.get("rows",[]) if isinstance(hunt_current,dict) else []:
+        if rr.get("moq_estimado"):
+            auto_moq = rr["moq_estimado"]
+            break
+
+    confirmed_supplier = (hunt_current.get("suppliers_confirmed",0) or 0) > 0
+    shopee_evidence = str(radar_row.get("evidencia_shopee","")).startswith("✅") or inv_current.get("shopee_evidencias",0)>0
+
+    if auto_sale <= 0:
+        st.warning("O robô não encontrou preço Shopee confiável em trecho público. Informe um preço de venda para simular.")
+    if auto_cost <= 0:
+        st.warning("O robô não encontrou custo público confiável. Informe uma cotação/custo para concluir a margem.")
+
+    f1,f2,f3,f4=st.columns(4)
+    sale_price=f1.number_input("Preço de venda (R$)",min_value=0.0,value=float(auto_sale),step=1.0,key="final_sale")
+    product_cost=f2.number_input("Custo produto (R$)",min_value=0.0,value=float(auto_cost),step=1.0,key="final_cost")
+    inbound=f3.number_input("Frete de entrada/unidade (R$)",min_value=0.0,value=0.0,step=0.5,key="final_inbound")
+    packaging=f4.number_input("Embalagem/unidade (R$)",min_value=0.0,value=1.5,step=0.5,key="final_pack")
+
+    p1,p2,p3,p4=st.columns(4)
+    marketplace_fee=p1.number_input("Taxas marketplace (%)",min_value=0.0,max_value=100.0,value=0.0,step=0.5,key="final_fee")
+    tax_pct=p2.number_input("Impostos (%)",min_value=0.0,max_value=100.0,value=0.0,step=0.5,key="final_tax")
+    ad_pct=p3.number_input("Ads previsto (% da venda)",min_value=0.0,max_value=100.0,value=10.0,step=1.0,key="final_ads")
+    loss_pct=p4.number_input("Devoluções/perdas (%)",min_value=0.0,max_value=100.0,value=2.0,step=0.5,key="final_loss")
+
+    q1,q2,q3=st.columns(3)
+    fixed_fee=q1.number_input("Tarifa fixa/unidade (R$)",min_value=0.0,value=0.0,step=0.5,key="final_fixed")
+    target_margin=q2.number_input("Meta de margem líquida (%)",min_value=0.0,max_value=100.0,value=15.0,step=1.0,key="final_target_margin")
+    test_budget=q3.number_input("Capital máximo para teste (R$)",min_value=50.0,value=500.0,step=50.0,key="final_budget")
+
+    final = evaluate_product(
+        sale_price=sale_price,
+        product_cost=product_cost,
+        inbound_freight=inbound,
+        packaging=packaging,
+        marketplace_fee_pct=marketplace_fee,
+        fixed_fee=fixed_fee,
+        tax_pct=tax_pct,
+        ad_pct=ad_pct,
+        return_loss_pct=loss_pct,
+        target_margin_pct=target_margin,
+        supplier_confirmed=confirmed_supplier,
+        shopee_evidence=shopee_evidence,
+        investigation_score=inv_current.get("score_investigacao",0),
+        radar_score=radar_row.get("score_radar",0),
+        moq=auto_moq,
+        test_budget=test_budget,
+    )
+
+    st.markdown(f"### {final.get('decision')}")
+    if not final.get("ready"):
+        st.warning("Faltam: " + ", ".join(final.get("missing",[])))
+    else:
+        z1,z2,z3,z4,z5=st.columns(5)
+        z1.metric("Lucro/unidade",f"R$ {final['profit_per_unit']:.2f}")
+        z2.metric("Margem líquida",f"{final['margin_pct']:.1f}%")
+        z3.metric("CAC máximo",f"R$ {final['cac_target']:.2f}")
+        z4.metric("ROAS alvo",f"{final['roas_target']:.2f}" if final.get("roas_target") else "Sem dado")
+        z5.metric("Unidades teste",final["test_units"])
+
+        y1,y2,y3=st.columns(3)
+        y1.metric("Capital do teste",f"R$ {final['test_capital']:.2f}")
+        y2.metric("Lucro esperado/lote",f"R$ {final['expected_test_profit']:.2f}")
+        y3.metric("CAC break-even",f"R$ {final['cac_break_even']:.2f}")
+
+        if final.get("reasons"):
+            st.write("**Pontos de atenção:** " + " • ".join(final["reasons"]))
+
+        st.caption("A decisão é uma triagem operacional baseada nos dados disponíveis e nas premissas preenchidas. Confirme cotação, taxas aplicáveis e condições reais antes de comprar estoque.")
 
 with tabs[1]:
     st.dataframe(pd.DataFrame(s["top_products"]),use_container_width=True,hide_index=True)

@@ -1,0 +1,19 @@
+GARIMPEIRO CONSOLIDADO — TESTE FINAL
+
+Arquivos para substituir/adicionar no GitHub:
+- app.py
+- opportunity_radar.py
+- deep_investigator.py
+- supplier_hunter.py
+- final_evaluator.py
+
+Fluxo:
+1. Radar Shopee-First
+2. Investigador Automático
+3. Caçador de Fornecedores
+4. Validação comercial
+5. Decisão Final e Plano de Teste
+
+Observação:
+Preços públicos, MOQ e fornecedores são evidências preliminares. O sistema não inventa dados ausentes.
+Taxas, impostos, Ads e outros custos permanecem editáveis para cálculo real.
