@@ -1,0 +1,29 @@
+GARIMPEIRO V17 — PERSISTÊNCIA REAL
+
+Objetivo:
+As coletas deixam de depender apenas de st.session_state. Quando Supabase estiver configurado,
+os produtos coletados ficam armazenados fora do Streamlit e podem ser restaurados após refresh,
+nova sessão e novo deploy.
+
+O que foi corrigido:
+1. auto_discovery_products agora é preenchido numa coleta bem-sucedida.
+2. auto_discovery_clusters é reconstruído/salvo na mesma execução.
+3. produtos são gravados em Supabase quando configurado.
+4. no início de uma nova sessão, o app restaura os produtos mais recentes do Supabase.
+5. botão “Recarregar banco salvo”.
+6. Concorrentes Vulneráveis passa a usar os produtos restaurados.
+7. se a Nexscope responder “Not enough credits”, a varredura para na PRIMEIRA falha.
+8. busca manual da Nexscope também pode ser persistida.
+
+IMPORTANTE:
+Sem SUPABASE_URL e SUPABASE_KEY, o app continua funcionando, mas NÃO há garantia de persistência
+entre deploys. O filesystem/sessão do Streamlit não é usado como “persistência real”.
+
+CONFIGURAÇÃO UMA ÚNICA VEZ:
+A) Criar um projeto gratuito no Supabase.
+B) Abrir SQL Editor e executar SUPABASE_SETUP.sql.
+C) No Streamlit: Manage app > Settings > Secrets, adicionar:
+SUPABASE_URL="https://SEU-PROJETO.supabase.co"
+SUPABASE_KEY="SUA_SERVICE_ROLE_KEY"
+
+Nunca coloque a SERVICE ROLE KEY no GitHub.

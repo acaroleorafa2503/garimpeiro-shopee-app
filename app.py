@@ -1,3 +1,4 @@
+from persistence_store import configured as persistence_configured, healthcheck as persistence_healthcheck, save_products as persist_products, load_latest_products as load_persisted_products
 from competitor_engine import analyze_market, strategy_from_market
 from seasonality_engine import apply_seasonality_to_rows, detect_seasonality
 from selfcheck import run_selfcheck
@@ -103,6 +104,27 @@ from auto_collector import refresh_registry, merge_rows
 
 st.set_page_config(page_title="Garimpeiro OS V20",layout="wide")
 init_db()
+
+# V17: carrega produtos persistidos uma vez por sessão.
+if "persistent_bootstrap_done" not in st.session_state:
+    st.session_state["persistent_bootstrap_done"]=True
+    if persistence_configured():
+        try:
+            _persisted=load_persisted_products(limit=2000)
+            if _persisted.get("ok") and _persisted.get("products"):
+                _pp=_persisted["products"]
+                st.session_state["auto_discovery_products"]=_pp
+                st.session_state["auto_discovery_ranked"]=rank_discovered(_pp)
+                try:
+                    st.session_state["auto_discovery_clusters"]=apply_seasonality_to_rows(build_commercial_clusters(_pp))
+                except Exception:
+                    pass
+                st.session_state["persistence_loaded_count"]=len(_pp)
+            elif not _persisted.get("ok"):
+                st.session_state["persistence_error"]=_persisted.get("error")
+        except Exception as _persist_err:
+            st.session_state["persistence_error"]=str(_persist_err)
+
 st.title("🚀 Garimpeiro Shopee V20 — Garimpeiro OS")
 
 with st.expander("🧪 Diagnóstico da versão"):
@@ -141,6 +163,17 @@ with tabs[0]:
 
     st.subheader("🤖 Garimpo Automático — Descoberta")
     st.caption("Modo principal: o robô percorre categorias sozinho, encontra produtos reais da Shopee e monta um ranking geral.")
+    _pc1,_pc2=st.columns([1,3])
+    if persistence_configured():
+        _loaded=int(st.session_state.get("persistence_loaded_count") or 0)
+        _pc1.success("💾 Banco persistente ativo")
+        _pc2.caption(f"{_loaded} produtos restaurados do banco nesta sessão." if _loaded else "Banco persistente configurado. Novas coletas serão salvas.")
+    else:
+        _pc1.warning("💾 Banco persistente não configurado")
+        _pc2.caption("Configure SUPABASE_URL e SUPABASE_KEY nos Secrets para não perder coletas após deploy.")
+    if st.session_state.get("persistence_error"):
+        st.warning("Persistência: "+str(st.session_state.get("persistence_error")))
+
 
     _auto_cats=st.multiselect(
         "Categorias para varrer",
@@ -187,16 +220,44 @@ with tabs[0]:
                             pass
                         _batches.append({"category":_job["category"],"keyword":_job["keyword"],"products":_products})
                     else:
-                        _errors.append(f"{_job['keyword']}: {_res.get('error','erro')}")
+                        _err_text=str(_res.get("error","erro"))
+                        _errors.append(f"{_job['keyword']}: {_err_text}")
+                        if "not enough credits" in _err_text.lower() or "insufficient credit" in _err_text.lower():
+                            st.session_state["nexscope_credit_blocked"]=True
+                            _status.warning("Nexscope sem créditos. A varredura foi interrompida na primeira falha para evitar tentativas desnecessárias.")
+                            _progress.progress(_i/max(1,len(_plan)))
+                            break
                 except Exception as _e:
                     _errors.append(f"{_job['keyword']}: {_e}")
                 _progress.progress(_i/max(1,len(_plan)))
 
             _merged=merge_discovery_results(_batches)
             _ranked=rank_discovered(_merged)
+            st.session_state["auto_discovery_products"]=_merged
             st.session_state["auto_discovery_ranked"]=_ranked
             st.session_state["auto_discovery_errors"]=_errors
-            _status.empty()
+            st.session_state["auto_discovery_summary"]=discovery_run_summary(_ranked,_errors)
+
+            if _merged:
+                try:
+                    _clusters=apply_seasonality_to_rows(build_commercial_clusters(_merged))
+                    st.session_state["auto_discovery_clusters"]=_clusters
+                except Exception as _cluster_save_err:
+                    st.session_state["persistence_error"]="Ranking local: "+str(_cluster_save_err)
+
+                if persistence_configured():
+                    try:
+                        _save_p=persist_products(_merged,source="auto_discovery")
+                        if _save_p.get("ok"):
+                            st.session_state["persistence_last_saved"]=_save_p.get("saved",0)
+                            st.session_state["persistence_loaded_count"]=len(_merged)
+                        else:
+                            st.session_state["persistence_error"]=_save_p.get("error")
+                    except Exception as _persist_save_err:
+                        st.session_state["persistence_error"]=str(_persist_save_err)
+
+            if not st.session_state.get("nexscope_credit_blocked"):
+                _status.empty()
 
     _auto_ranked=st.session_state.get("auto_discovery_ranked") or []
     _auto_errors=st.session_state.get("auto_discovery_errors") or []
@@ -307,6 +368,28 @@ with tabs[0]:
                     })
                 st.dataframe(pd.DataFrame(_show),use_container_width=True,hide_index=True)
 
+
+    if persistence_configured():
+        _ps1,_ps2=st.columns([1,3])
+        if _ps1.button("♻️ Recarregar banco salvo",key="reload_persistent_products"):
+            try:
+                _reload=load_persisted_products(limit=2000)
+                if _reload.get("ok"):
+                    _rprod=_reload.get("products") or []
+                    st.session_state["auto_discovery_products"]=_rprod
+                    st.session_state["auto_discovery_ranked"]=rank_discovered(_rprod)
+                    st.session_state["auto_discovery_clusters"]=apply_seasonality_to_rows(build_commercial_clusters(_rprod)) if _rprod else []
+                    st.session_state["persistence_loaded_count"]=len(_rprod)
+                    st.success(f"{len(_rprod)} produtos restaurados do banco persistente.")
+                    st.rerun()
+                else:
+                    st.error("Falha ao ler banco persistente: "+str(_reload.get("error")))
+            except Exception as _reload_err:
+                st.error("Falha ao ler banco persistente: "+str(_reload_err))
+        _last_saved=st.session_state.get("persistence_last_saved")
+        if _last_saved is not None:
+            _ps2.caption(f"Último salvamento persistente: {_last_saved} produtos.")
+
     if _auto_errors:
         with st.expander(f"⚠️ {len(_auto_errors)} buscas tiveram erro"):
             for _err in _auto_errors:
@@ -371,7 +454,7 @@ with tabs[0]:
         _comp_products=[r.get("_product") for r in _ranked_old if isinstance(r,dict) and r.get("_product")]
 
     if not _comp_products:
-        st.info("Ainda não há produtos coletados nesta sessão para analisar concorrentes.")
+        st.info("Ainda não há produtos disponíveis para analisar concorrentes. Se o banco persistente estiver configurado, use “Recarregar banco salvo”.")
     else:
         _analysis=analyze_market(_comp_products)
         _rows_comp=_analysis.get("rows",[])
@@ -466,6 +549,13 @@ with tabs[0]:
                             save_snapshot(ns_result.get("products", []))
                         except Exception as _scale_err:
                             st.session_state["scale_snapshot_error"] = str(_scale_err)
+                        if persistence_configured():
+                            try:
+                                _mps=persist_products(ns_result.get("products", []),source="manual_nexscope",keyword=ns_keyword)
+                                if not _mps.get("ok"):
+                                    st.session_state["persistence_error"]=_mps.get("error")
+                            except Exception as _mperr:
+                                st.session_state["persistence_error"]=str(_mperr)
 
         ns_result=st.session_state.get("nexscope_result")
         if ns_result:
