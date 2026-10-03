@@ -1,3 +1,4 @@
+from forecast_engine import build_realistic_forecast
 from ads_brain_engine import build_ads_brain
 from investigation_engine import investigate_existing_opportunity
 from persistence_store import configured as persistence_configured, healthcheck as persistence_healthcheck, save_products as persist_products, load_latest_products as load_persisted_products
@@ -127,7 +128,7 @@ if "persistent_bootstrap_done" not in st.session_state:
         except Exception as _persist_err:
             st.session_state["persistence_error"]=str(_persist_err)
 
-st.title("🚀 Garimpeiro Shopee — V20 Cérebro de Anúncios")
+st.title("🚀 Garimpeiro Shopee — V21 Previsão Realista")
 
 with st.expander("🧪 Diagnóstico da versão"):
     _sc=run_selfcheck()
@@ -719,6 +720,50 @@ else:
         st.write("•",_f)
 
     st.session_state["ads_brain_ready"]=True
+
+st.divider()
+st.subheader("📊 Previsão Realista")
+st.caption("Separa dado observado de cenário. Não transforma falta de histórico em falsa precisão.")
+
+_forecast_candidate=st.session_state.get("ads_brain_candidate")
+if not _forecast_candidate:
+    st.info("Aguardando produto aprovado pela Investigação para gerar cenários.")
+else:
+    _forecast=build_realistic_forecast(_forecast_candidate)
+    st.session_state["forecast_result"]=_forecast
+
+    if _forecast["nivel"] >= 2:
+        st.success(f"{_forecast['conclusao']} | Confiança: {_forecast['confianca']}")
+    elif _forecast["nivel"] == 1:
+        st.warning(f"{_forecast['conclusao']} | Confiança: {_forecast['confianca']}")
+    else:
+        st.info(f"{_forecast['conclusao']} | Confiança: {_forecast['confianca']}")
+
+    st.markdown("#### 🔎 Dados observados")
+    _obs=_forecast["observado"]
+    _fo1,_fo2,_fo3,_fo4=st.columns(4)
+    _fo1.metric("Vendas 30d",_obs["vendas_30d_atual"])
+    _fo2.metric("Preço",f"R$ {_obs['preco_atual']:.2f}" if _obs["preco_atual"] else "—")
+    _fo3.metric("Snapshots",_obs["snapshots"])
+    _fo4.metric("Aceleração",_obs["score_aceleracao"])
+
+    st.write("**Sazonalidade:**",_obs["sazonalidade"])
+
+    if _forecast["cenarios"]:
+        st.markdown("#### 📈 Cenários de 30 dias")
+        _df_forecast=pd.DataFrame(_forecast["cenarios"])
+        st.dataframe(_df_forecast,use_container_width=True,hide_index=True)
+        st.caption("Esses valores são cenários derivados do nível atual de vendas; não são garantia de venda futura.")
+
+    if _forecast["notas"]:
+        st.markdown("#### ⚠️ Limitações")
+        for _n in _forecast["notas"]:
+            st.write("•",_n)
+
+    if _forecast["proximo_para_melhorar"]:
+        st.markdown("#### 🧪 O que aumenta a confiança da previsão")
+        for _n in _forecast["proximo_para_melhorar"]:
+            st.write("•",_n)
     st.divider()
     with st.expander("⚙️ Ferramentas técnicas / módulos antigos", expanded=False):
         st.caption(

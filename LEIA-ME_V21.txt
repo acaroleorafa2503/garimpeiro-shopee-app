@@ -1,0 +1,30 @@
+GARIMPEIRO V21 — PREVISÃO REALISTA
+
+Base oficial: V20.
+
+Princípio:
+A previsão não pode fingir certeza sem histórico temporal.
+
+O módulo separa:
+- DADO OBSERVADO
+- CENÁRIO
+- CONFIANÇA
+- LIMITAÇÕES
+
+Níveis:
+- Insuficiente
+- Baixa
+- Média
+- Alta
+
+Regras:
+- Com pouco histórico, mostra apenas cenários preliminares.
+- Com mais snapshots e confiança, aumenta o nível da previsão.
+- Nunca chama cenário de garantia.
+- Se vendas/preço/histórico faltarem, isso aparece explicitamente.
+- Sazonalidade atrasada gera alerta de cautela.
+
+Próximos blocos finais:
+- Alertas
+- Auditoria
+- Resumo Executivo
