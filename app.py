@@ -1,3 +1,4 @@
+from scale_radar import save_snapshot, scale_signal, competitor_vulnerability, forecast_from_signal, build_alerts
 from landed_cost import landed_cost_brazil, profitability
 import streamlit as st
 import pandas as pd
@@ -170,6 +171,10 @@ with tabs[0]:
                     st.session_state["nexscope_result"]=ns_result
                     if ns_result.get("ok"):
                         st.session_state["structured_shopee_rows"]=as_structured_shopee_rows(ns_result)
+                        try:
+                            save_snapshot(ns_result.get("products", []))
+                        except Exception as _scale_err:
+                            st.session_state["scale_snapshot_error"] = str(_scale_err)
 
         ns_result=st.session_state.get("nexscope_result")
         if ns_result:
@@ -389,6 +394,82 @@ else:
 
 st.divider()
 
+
+st.subheader("🚀 V13 — Radar de Escala")
+st.caption("Separa produto que já vende muito de produto que está realmente acelerando.")
+
+_ns_v13 = st.session_state.get("nexscope_result") or {}
+_v13_products = _ns_v13.get("products",[]) if isinstance(_ns_v13,dict) else []
+
+if not _v13_products:
+    st.info("Faça primeiro uma busca em Shopee Real — Nexscope. Cada busca válida passa a ser registrada automaticamente como histórico.")
+else:
+    _names_v13=[p.get("produto","") for p in _v13_products if p.get("produto")]
+    _selected_v13=st.selectbox("Produto para analisar escala",_names_v13,key="v13_selected")
+    _prod_v13=next((p for p in _v13_products if p.get("produto")==_selected_v13),None)
+
+    if _prod_v13:
+        _sig=scale_signal(_prod_v13)
+        _vulns=competitor_vulnerability(_v13_products)
+        _forecast=forecast_from_signal(_prod_v13,_sig)
+        _alerts=build_alerts(_sig,_vulns)
+
+        v1,v2,v3,v4,v5=st.columns(5)
+        v1.metric("Score de escala",_sig.get("score",0))
+        v2.metric("Momento",_sig.get("status","—"))
+        v3.metric("Snapshots",_sig.get("history_points",0))
+        v4.metric("Δ vendas históricas",int(_sig.get("hist_delta",0)))
+        v5.metric("Δ avaliações",int(_sig.get("ratings_delta",0)))
+
+        st.write("**Leitura:**",_sig.get("reason","—"))
+        if _sig.get("history_points",0)<2:
+            st.warning("Ainda não há histórico suficiente para afirmar aceleração. Repita a mesma busca mais tarde; o Garimpeiro guardará um novo snapshot.")
+
+        st.markdown("#### 🎯 Concorrentes vulneráveis")
+        if _vulns:
+            _dfv=pd.DataFrame(_vulns[:10])
+            st.dataframe(
+                _dfv[["vulnerabilidade","loja","produto","preco","vendidos_30d","avaliacao","qtd_avaliacoes","brechas","url"]],
+                use_container_width=True,hide_index=True,
+                column_config={"url":st.column_config.LinkColumn("Abrir")}
+            )
+
+        st.markdown("#### 🔮 Melhor cenário e previsão")
+        f1,f2,f3=st.columns(3)
+        f1.metric("Conservador",_forecast.get("conservador",0))
+        f2.metric("Base",_forecast.get("base",0))
+        f3.metric("Agressivo",_forecast.get("agressivo",0))
+        st.caption("Projeções heurísticas a partir do sinal observado; não são garantia de vendas.")
+
+        st.markdown("#### 🚨 Alertas")
+        for _a in _alerts:
+            st.write(_a)
+
+        st.markdown("#### 🧾 Auditoria")
+        st.json({
+            "fonte":"Shopee via Nexscope",
+            "produto":_prod_v13.get("produto"),
+            "pid":_prod_v13.get("pid"),
+            "preco":_prod_v13.get("preco"),
+            "vendidos_30d":_prod_v13.get("vendidos_30d"),
+            "vendidos_historicos":_prod_v13.get("vendidos_historicos"),
+            "avaliacao":_prod_v13.get("avaliacao"),
+            "avaliacoes":_prod_v13.get("qtd_avaliacoes"),
+            "score_escala":_sig.get("score"),
+            "status":_sig.get("status"),
+            "snapshots":_sig.get("history_points"),
+        })
+
+        _top=_vulns[0] if _vulns else {}
+        _next="Investigar estratégia de anúncio" if _sig.get("score",0)>=70 else "Continuar coletando histórico"
+        st.markdown("#### 📌 Resumo executivo")
+        st.success(
+            f"Produto: {_prod_v13.get('produto','')} | Momento: {_sig.get('status','—')} | "
+            f"Score: {_sig.get('score',0)} | Principal brecha: {_top.get('brechas','sem brecha clara')} | "
+            f"Próxima ação: {_next}"
+        )
+
+st.divider()
 st.subheader("🌏 Fornecedores 1688 — Nexscope")
 st.caption("Sourcing estruturado no 1688. O preço abaixo é preço de atacado na moeda informada pela fonte — ainda NÃO é custo final em reais.")
 

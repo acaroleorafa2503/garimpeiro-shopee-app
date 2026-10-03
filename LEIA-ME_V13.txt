@@ -1,0 +1,9 @@
+GARIMPEIRO V13 — RADAR DE ESCALA
+
+- Registra snapshots automáticos das buscas Nexscope.
+- Detecta aceleração com histórico, não apenas volume absoluto.
+- Mostra score de escala e evolução de vendas/avaliações.
+- Identifica concorrentes vulneráveis.
+- Traz cenários conservador/base/agressivo.
+- Gera alertas, auditoria e resumo executivo.
+- Para afirmar aceleração, é preciso pelo menos 2 coletas do mesmo produto em momentos diferentes.
