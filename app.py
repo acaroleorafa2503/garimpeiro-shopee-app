@@ -1,3 +1,4 @@
+from alerts_engine import build_alerts
 from forecast_engine import build_realistic_forecast
 from ads_brain_engine import build_ads_brain
 from investigation_engine import investigate_existing_opportunity
@@ -128,7 +129,7 @@ if "persistent_bootstrap_done" not in st.session_state:
         except Exception as _persist_err:
             st.session_state["persistence_error"]=str(_persist_err)
 
-st.title("🚀 Garimpeiro Shopee — V21 Previsão Realista")
+st.title("🚀 Garimpeiro Shopee — V22 Alertas Inteligentes")
 
 with st.expander("🧪 Diagnóstico da versão"):
     _sc=run_selfcheck()
@@ -764,6 +765,42 @@ else:
         st.markdown("#### 🧪 O que aumenta a confiança da previsão")
         for _n in _forecast["proximo_para_melhorar"]:
             st.write("•",_n)
+
+st.divider()
+st.subheader("🚨 Alertas Inteligentes")
+st.caption("Sinaliza mudanças e condições que exigem ação. Não faz nova chamada Nexscope.")
+
+_alerts_products=st.session_state.get("auto_discovery_products") or []
+_alerts_clusters=st.session_state.get("auto_discovery_clusters") or []
+_alerts_forecast=st.session_state.get("forecast_result") or {}
+_alerts_inv=st.session_state.get("ads_brain_candidate") or {}
+
+_alerts_result=build_alerts(
+    products=_alerts_products,
+    clusters=_alerts_clusters,
+    forecast=_alerts_forecast,
+    investigation=_alerts_inv,
+)
+st.session_state["smart_alerts_result"]=_alerts_result
+
+_as=_alerts_result["summary"]
+_al1,_al2,_al3,_al4=st.columns(4)
+_al1.metric("Alertas",_as["total"])
+_al2.metric("Alta prioridade",_as["alta"])
+_al3.metric("Média prioridade",_as["media"])
+_al4.metric("Baixa prioridade",_as["baixa"])
+
+if not _alerts_result["alerts"]:
+    st.info("Nenhum alerta inteligente disponível ainda. O módulo será alimentado pelas próximas coletas persistidas.")
+else:
+    _df_alerts=pd.DataFrame(_alerts_result["alerts"])
+    st.dataframe(_df_alerts,use_container_width=True,hide_index=True)
+
+    _high=[a for a in _alerts_result["alerts"] if a["prioridade"]=="Alta"]
+    if _high:
+        st.markdown("#### 🔥 O que exige atenção agora")
+        for _a in _high[:8]:
+            st.write(f"• **{_a['tipo']}** — {_a['produto'] or 'Sistema'}: {_a['mensagem']}")
     st.divider()
     with st.expander("⚙️ Ferramentas técnicas / módulos antigos", expanded=False):
         st.caption(

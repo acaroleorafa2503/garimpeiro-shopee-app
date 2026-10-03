@@ -1,0 +1,21 @@
+GARIMPEIRO V22 — ALERTAS INTELIGENTES
+
+Base oficial: V21.
+
+Alertas cobertos:
+- Oportunidade forte
+- Aceleração confirmada
+- Momento sazonal ideal
+- Janela sazonal curta
+- Janela sazonal atrasada
+- Risco identificado
+- Previsão com confiança alta
+- Produto aprovado para Cérebro de Anúncios
+- Produto bloqueado por risco
+
+O módulo não consome Nexscope.
+Ele usa dados já persistidos e resultados dos módulos anteriores.
+
+Próximos blocos finais:
+- Auditoria
+- Resumo Executivo
