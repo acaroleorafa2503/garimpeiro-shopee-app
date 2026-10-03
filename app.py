@@ -1,3 +1,4 @@
+from landed_cost import landed_cost_brazil, profitability
 import streamlit as st
 import pandas as pd
 from db import (
@@ -501,6 +502,127 @@ else:
                 )
 
             st.warning("Não use o preço 1688 diretamente como custo em R$. Ainda faltam câmbio, frete internacional, impostos, despacho e possíveis taxas.")
+
+st.divider()
+
+st.subheader("🇧🇷 Custo Posto no Brasil")
+st.caption("Calcula o custo unitário realista do fornecedor 1688 até chegar ao Brasil. Nenhum imposto, frete ou câmbio é inventado: você informa os valores usados no cálculo.")
+
+saved1688 = st.session_state.get("supplier_1688_candidate")
+if not saved1688:
+    st.info("Primeiro escolha um fornecedor 1688 e clique em “Guardar como candidato de fornecedor”.")
+else:
+    st.write("**Fornecedor candidato:**", saved1688.get("empresa") or "Fornecedor 1688")
+    st.write("**Produto 1688:**", saved1688.get("titulo_1688") or "—")
+
+    wh = saved1688.get("preco_atacado")
+    moq = int(saved1688.get("moq") or 1)
+    currency = saved1688.get("moeda") or "CNY"
+
+    c1,c2,c3 = st.columns(3)
+    wholesale_cny = c1.number_input(
+        f"Preço unitário fornecedor ({currency})",
+        min_value=0.0,
+        value=float(wh or 0),
+        step=0.10,
+        key="landed_wholesale"
+    )
+    qty = c2.number_input(
+        "Quantidade do lote",
+        min_value=1,
+        value=max(moq, 1),
+        step=1,
+        key="landed_qty"
+    )
+    fx = c3.number_input(
+        "Câmbio CNY → BRL usado no cálculo",
+        min_value=0.0,
+        value=0.0,
+        step=0.01,
+        key="landed_fx",
+        help="Digite a cotação que você quer usar. O Garimpeiro não inventa uma cotação."
+    )
+
+    c4,c5,c6 = st.columns(3)
+    intl = c4.number_input("Frete internacional total (R$)",min_value=0.0,value=0.0,step=10.0,key="landed_intl")
+    taxes = c5.number_input("Impostos de importação total (R$)",min_value=0.0,value=0.0,step=10.0,key="landed_taxes")
+    customs = c6.number_input("Despacho/taxas aduaneiras (R$)",min_value=0.0,value=0.0,step=10.0,key="landed_customs")
+
+    c7,c8,c9 = st.columns(3)
+    domestic = c7.number_input("Frete no Brasil total (R$)",min_value=0.0,value=0.0,step=10.0,key="landed_domestic")
+    packaging = c8.number_input("Embalagem por unidade (R$)",min_value=0.0,value=0.0,step=0.10,key="landed_pack")
+    other_fixed = c9.number_input("Outros custos fixos do lote (R$)",min_value=0.0,value=0.0,step=10.0,key="landed_other_fixed")
+
+    other_unit = st.number_input("Outros custos por unidade (R$)",min_value=0.0,value=0.0,step=0.10,key="landed_other_unit")
+
+    if st.button("🧮 Calcular custo posto no Brasil",key="calc_landed"):
+        if fx <= 0:
+            st.warning("Informe o câmbio CNY → BRL antes de calcular.")
+        else:
+            lc = landed_cost_brazil(
+                wholesale_cny=wholesale_cny,
+                qty=qty,
+                fx_cny_brl=fx,
+                intl_freight_brl=intl,
+                import_taxes_brl=taxes,
+                customs_brl=customs,
+                domestic_freight_brl=domestic,
+                packaging_brl_per_unit=packaging,
+                other_fixed_brl=other_fixed,
+                other_unit_brl=other_unit,
+            )
+            st.session_state["landed_cost_result"] = lc
+
+    lc = st.session_state.get("landed_cost_result")
+    if lc and lc.get("ok"):
+        l1,l2,l3,l4 = st.columns(4)
+        l1.metric("Produto convertido",f"R$ {lc['product_total_brl']:.2f}")
+        l2.metric("Custos fixos lote",f"R$ {lc['fixed_total_brl']:.2f}")
+        l3.metric("Custo total posto",f"R$ {lc['landed_total_brl']:.2f}")
+        l4.metric("Custo posto / unidade",f"R$ {lc['landed_unit_brl']:.2f}")
+
+        st.markdown("#### 💰 Viabilidade na Shopee")
+        ns_prod = _get_nexscope_product_by_name(saved1688.get("produto_shopee"))
+        sale_default = float((ns_prod or {}).get("preco") or 0)
+
+        p1,p2,p3,p4 = st.columns(4)
+        sale_price = p1.number_input("Preço de venda Shopee (R$)",min_value=0.0,value=sale_default,step=0.10,key="profit_sale")
+        fee_pct = p2.number_input("Taxa marketplace (%)",min_value=0.0,value=0.0,step=0.1,key="profit_fee")
+        fixed_fee = p3.number_input("Taxa fixa por pedido (R$)",min_value=0.0,value=0.0,step=0.10,key="profit_fixed")
+        tax_pct = p4.number_input("Tributos sobre venda (%)",min_value=0.0,value=0.0,step=0.1,key="profit_tax")
+
+        p5,p6,p7 = st.columns(3)
+        ads_pct = p5.number_input("Ads (% da venda)",min_value=0.0,value=0.0,step=0.5,key="profit_ads")
+        returns_pct = p6.number_input("Perdas/devoluções (%)",min_value=0.0,value=0.0,step=0.5,key="profit_returns")
+        target_margin = p7.number_input("Margem-alvo (%)",min_value=0.0,value=20.0,step=1.0,key="profit_target")
+
+        if st.button("📊 Calcular margem e Ads",key="calc_profit"):
+            pr = profitability(
+                sale_price_brl=sale_price,
+                landed_unit_brl=lc["landed_unit_brl"],
+                marketplace_fee_pct=fee_pct,
+                fixed_fee_brl=fixed_fee,
+                tax_pct=tax_pct,
+                ads_pct=ads_pct,
+                returns_pct=returns_pct,
+                target_margin_pct=target_margin,
+            )
+            st.session_state["profitability_result"] = pr
+
+        pr = st.session_state.get("profitability_result")
+        if pr and pr.get("ok"):
+            r1,r2,r3,r4 = st.columns(4)
+            r1.metric("Lucro/unidade",f"R$ {pr['profit_brl']:.2f}")
+            r2.metric("Margem líquida",f"{pr['margin_pct']:.2f}%")
+            r3.metric("CAC break-even",f"R$ {pr['cac_break_even_brl']:.2f}")
+            r4.metric("CAC para margem-alvo",f"R$ {pr['cac_target_brl']:.2f}")
+
+            rr1,rr2 = st.columns(2)
+            rr1.metric("ROAS break-even",f"{pr['roas_break_even']:.2f}" if pr['roas_break_even'] else "—")
+            rr2.metric("ROAS para margem-alvo",f"{pr['roas_target']:.2f}" if pr['roas_target'] else "—")
+
+            st.subheader(pr["decision"])
+            st.caption("A decisão usa apenas os valores preenchidos nesta simulação. Antes de comprar estoque, confirme câmbio, frete, impostos, taxas e condições do fornecedor.")
 
 st.divider()
 st.subheader("🏭 Caçador de Fornecedores e Preços")

@@ -1,0 +1,14 @@
+GARIMPEIRO V12 — CUSTO POSTO NO BRASIL
+
+Novo:
+- Usa o fornecedor 1688 salvo.
+- Calcula produto convertido CNY→BRL.
+- Soma frete internacional, impostos, despacho, frete doméstico, embalagem e outros custos.
+- Mostra custo total e custo unitário posto no Brasil.
+- Usa preço real da Shopee como referência de venda quando disponível.
+- Calcula lucro/unidade, margem líquida, CAC break-even, CAC para margem-alvo, ROAS break-even e ROAS para margem-alvo.
+- Não inventa câmbio, imposto ou frete. Campos começam em zero e precisam ser preenchidos com os valores desejados/confirmados.
+- Não libera conclusão econômica válida sem custo posto calculado.
+
+Observação:
+A classificação é uma simulação econômica baseada nos valores inseridos, não uma garantia de lucro.
