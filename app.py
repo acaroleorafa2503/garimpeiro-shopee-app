@@ -38,6 +38,7 @@ def _merge_nexscope_into_investigation(product_name, investigation):
 
     # Strong structured Shopee evidence from the exact selected product.
     investigation["evidencias_shopee"] = max(int(investigation.get("evidencias_shopee") or 0), 1)
+    investigation["shopee_evidencias"] = max(int(investigation.get("shopee_evidencias") or 0), 1)
 
     # Preserve/raise confidence because the exact item came from a structured Shopee result.
     old_score = int(investigation.get("score_investigacao") or 0)
@@ -78,8 +79,10 @@ def _merge_nexscope_into_investigation(product_name, investigation):
     suppliers = int(investigation.get("fornecedores") or 0)
     if suppliers > 0:
         investigation["decisao"] = investigation.get("decisao") or "AVANÇAR PARA COTAÇÃO REAL"
+        investigation["decisao_preliminar"] = "🟢 DEMANDA SHOPEE CONFIRMADA — VALIDAR MARGEM"
     else:
         investigation["decisao"] = "PROCURAR / VALIDAR FORNECEDOR"
+        investigation["decisao_preliminar"] = "🟡 DEMANDA SHOPEE CONFIRMADA — PROCURAR FORNECEDOR"
 
     return investigation
 
@@ -338,6 +341,17 @@ else:
             j3.metric("Fornecedores",inv.get("fornecedores_encontrados",0))
             j4.metric("Confirmações externas",inv.get("confirmacoes_secundarias",0))
             j5.metric("Confiança",inv.get("confianca","Baixa"))
+
+            ns_ev=inv.get("nexscope_shopee") or {}
+            if ns_ev:
+                st.success("✅ Produto exato confirmado na Shopee via Nexscope")
+                n1,n2,n3,n4=st.columns(4)
+                n1.metric("Vendas 30d", ns_ev.get("vendidos_30d",0))
+                n2.metric("Avaliação", f"{ns_ev.get('avaliacao'):.2f}" if isinstance(ns_ev.get("avaliacao"),(int,float)) else "Sem dado")
+                n3.metric("Qtd. avaliações", ns_ev.get("qtd_avaliacoes",0))
+                n4.metric("Loja", ns_ev.get("loja") or "Sem dado")
+                if ns_ev.get("url"):
+                    st.link_button("🔗 Abrir produto na Shopee", ns_ev.get("url"))
 
             ps=inv.get("preco_shopee",{})
             pf=inv.get("preco_fornecedor",{})

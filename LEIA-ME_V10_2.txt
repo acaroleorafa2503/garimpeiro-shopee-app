@@ -1,0 +1,7 @@
+GARIMPEIRO V10.2 — CORREÇÃO FINAL DO INVESTIGADOR
+
+- Corrige o contador visual Evidências Shopee (shopee_evidencias).
+- Mantém também a chave evidencias_shopee para compatibilidade.
+- Mostra bloco estruturado com vendas 30d, avaliação, quantidade de avaliações, loja e link Shopee.
+- Atualiza a decisão preliminar para reconhecer demanda Shopee confirmada.
+- Fornecedor e custo continuam independentes e nunca são inventados.
