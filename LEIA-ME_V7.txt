@@ -1,0 +1,19 @@
+GARIMPEIRO V7 — INTELIGÊNCIA DE PREÇO E CUSTO
+
+Fluxo consolidado:
+1. Radar Shopee-First
+2. Investigador Automático
+3. Caçador de Fornecedores
+4. Inteligência de Preço e Custo
+5. Decisão Final e Plano de Teste
+
+Arquivos deste pacote:
+- app.py
+- opportunity_radar.py
+- deep_investigator.py
+- supplier_hunter.py
+- price_intelligence.py
+- final_evaluator.py
+
+Regra: o sistema não inventa preço ou custo ausente.
+Preço de kit/lote é separado de preço unitário quando a evidência permite.

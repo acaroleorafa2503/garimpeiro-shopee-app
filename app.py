@@ -17,6 +17,7 @@ from opportunity_radar import run_opportunity_radar, CATEGORY_LABELS, MODE_HINTS
 from deep_investigator import investigate_product
 from supplier_hunter import hunt_suppliers
 from final_evaluator import evaluate_product
+from price_intelligence import analyze_price_cost
 
 st.set_page_config(page_title="Garimpeiro OS V20",layout="wide")
 init_db()
@@ -254,6 +255,63 @@ else:
                     st.write(hunt["errors"])
 
 
+
+st.divider()
+st.subheader("💰 Inteligência de Preço e Custo")
+st.caption("Busca faixas públicas de preço na Shopee, fornecedores e outros marketplaces. Preços de kit/lote são separados para evitar tratar total de caixa como custo unitário.")
+
+price_radar = st.session_state.get("radar_result") or {}
+price_candidates = [
+    x.get("oportunidade","") for x in price_radar.get("rows",[])
+    if isinstance(x,dict) and x.get("oportunidade")
+] if isinstance(price_radar,dict) else []
+price_candidates=list(dict.fromkeys(price_candidates))
+
+if not price_candidates:
+    st.info("Primeiro rode o Radar e gere pelo menos um produto candidato.")
+else:
+    pc1,pc2=st.columns([3,1])
+    price_product=pc1.selectbox("Produto para analisar preço/custo",price_candidates,key="price_product")
+    price_queries=pc2.selectbox("Buscas de preço/custo",[4,6,8,10],index=1,key="price_queries")
+    st.caption(f"Esta etapa consumirá no máximo {price_queries} solicitações adicionais da Brave Search API.")
+
+    if st.button("💰 Buscar preço e custo",key="run_price_intel"):
+        with st.spinner(f"Buscando preços e custos para {price_product}..."):
+            pr=analyze_price_cost(price_product,price_queries,8)
+            st.session_state["price_intel_result"]=pr
+
+    pr=st.session_state.get("price_intel_result")
+    if pr and pr.get("product")==price_product:
+        if not pr.get("enabled"):
+            st.error(pr.get("message"))
+        else:
+            sh=pr.get("shopee_stats",{})
+            su=pr.get("supplier_stats",{})
+            se=pr.get("secondary_stats",{})
+
+            a1,a2,a3,a4=st.columns(4)
+            a1.metric("Preço Shopee mediano",f"R$ {sh['median']:.2f}" if sh.get("median") else "Sem dado")
+            a2.metric("Custo fornecedor mínimo",f"R$ {su['min']:.2f}" if su.get("min") else "Sem dado")
+            a3.metric("Confiança preço",pr.get("sale_confidence","Baixa"))
+            a4.metric("Confiança custo",pr.get("cost_confidence","Baixa"))
+
+            b1,b2,b3=st.columns(3)
+            b1.metric("Evidências Shopee",sh.get("count",0))
+            b2.metric("Evidências fornecedor",su.get("count",0))
+            b3.metric("Confirmações externas",se.get("count",0))
+
+            price_rows=pr.get("rows",[])
+            if price_rows:
+                pdf=pd.DataFrame(price_rows)
+                cols=["tipo","titulo","fonte","precos_brutos","quantidade_lote","preco_unitario_derivado","confianca","descricao","url"]
+                for c in cols:
+                    if c not in pdf.columns:
+                        pdf[c]=""
+                st.dataframe(pdf[cols],use_container_width=True,hide_index=True,
+                    column_config={"url":st.column_config.LinkColumn("Abrir fonte")})
+
+            st.caption("O robô só usa automaticamente preço/custo quando há evidência pública. Valores podem refletir promoções ou variações e devem ser conferidos antes da compra.")
+
 st.divider()
 st.subheader("🧮 Decisão Final e Plano de Teste")
 st.caption("Use os dados encontrados pelo robô e complete apenas o que não estiver disponível publicamente. Taxas e custos ficam como entradas editáveis para evitar suposições incorretas.")
@@ -277,9 +335,15 @@ else:
     inv_current = inv_res if isinstance(inv_res,dict) and inv_res.get("product")==selected_final else {}
     hunt_current = hunt_res if isinstance(hunt_res,dict) and hunt_res.get("product")==selected_final else {}
 
-    auto_sale = ((inv_current.get("preco_shopee") or {}).get("median") or 0)
-    auto_cost = ((hunt_current.get("price_stats") or {}).get("min") or
-                 (inv_current.get("preco_fornecedor") or {}).get("min") or 0)
+    price_current = st.session_state.get("price_intel_result") or {}
+    if not isinstance(price_current,dict) or price_current.get("product")!=selected_final:
+        price_current = {}
+
+    auto_sale = (price_current.get("auto_sale_price") or
+                 ((inv_current.get("preco_shopee") or {}).get("median") or 0))
+    auto_cost = (price_current.get("auto_cost_price") or
+                 ((hunt_current.get("price_stats") or {}).get("min") or
+                  (inv_current.get("preco_fornecedor") or {}).get("min") or 0))
     auto_moq = 0
     for rr in hunt_current.get("rows",[]) if isinstance(hunt_current,dict) else []:
         if rr.get("moq_estimado"):
