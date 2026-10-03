@@ -1,3 +1,4 @@
+from investigation_engine import investigate_existing_opportunity
 from persistence_store import configured as persistence_configured, healthcheck as persistence_healthcheck, save_products as persist_products, load_latest_products as load_persisted_products
 from competitor_engine import analyze_market, strategy_from_market
 from seasonality_engine import apply_seasonality_to_rows, detect_seasonality
@@ -499,6 +500,113 @@ with tabs[0]:
             st.write("**Oferta:**",_strategy["offer_strategy"])
             st.write("**Criativo/listagem:**",_strategy["creative_strategy"])
 
+
+st.divider()
+st.subheader("🔬 Investigação Aprofundada")
+st.caption("Consolida os dados já coletados. Não faz nova chamada Nexscope e não procura fornecedor nesta etapa.")
+
+_inv_clusters=st.session_state.get("auto_discovery_clusters") or []
+_inv_products=st.session_state.get("auto_discovery_products") or []
+
+if not _inv_clusters:
+    st.info("Ainda não há oportunidades salvas para investigar. Quando houver coleta persistida, este módulo será preenchido automaticamente.")
+else:
+    _inv_labels=[]
+    _inv_map={}
+    for _ix,_r in enumerate(_inv_clusters):
+        _label=f"{_r.get('acao','')} | {_r.get('produto','')[:95]} | Score {_r.get('score_oportunidade_hoje',0)}"
+        if _label in _inv_map:
+            _label=f"{_label} #{_ix+1}"
+        _inv_labels.append(_label)
+        _inv_map[_label]=_r
+
+    _inv_choice=st.selectbox(
+        "Escolha a oportunidade para investigação completa",
+        _inv_labels,
+        key="deep_investigation_choice"
+    )
+    _inv_row=_inv_map[_inv_choice]
+    _inv=investigate_existing_opportunity(_inv_row,_inv_products)
+
+    _i1,_i2,_i3,_i4,_i5=st.columns(5)
+    _i1.metric("Oportunidade hoje",_inv["score_oportunidade_hoje"])
+    _i2.metric("Aceleração",_inv["score_aceleracao"])
+    _i3.metric("Confiança",f"{_inv['confianca']} ({_inv['confianca_score']})")
+    _i4.metric("Concorrentes similares",_inv["concorrentes_semelhantes"])
+    _i5.metric("Vendas 30d",_inv["vendidos_30d"])
+
+    if _inv["gate"]=="ads":
+        st.success(_inv["veredito"])
+    elif _inv["gate"]=="risco":
+        st.error(_inv["veredito"])
+    elif _inv["gate"]=="monitor":
+        st.warning(_inv["veredito"])
+    else:
+        st.info(_inv["veredito"])
+
+    st.markdown("#### 📌 Leitura consolidada")
+    _detail_rows=[
+        {"Sinal":"Produto","Leitura":_inv["produto"]},
+        {"Sinal":"Preço atual","Leitura":f"R$ {_inv['preco']:.2f}" if _inv["preco"] else "—"},
+        {"Sinal":"Avaliação","Leitura":f"{_inv['avaliacao']:.2f} ({_inv['qtd_avaliacoes']} avaliações)" if _inv["avaliacao"] else "—"},
+        {"Sinal":"Sazonalidade","Leitura":f"{_inv['evento_sazonal']} | {_inv['janela_sazonal']} | pico em {_inv['dias_ate_pico']} dias" if _inv["dias_ate_pico"] is not None else f"{_inv['evento_sazonal']} | {_inv['janela_sazonal']}"},
+        {"Sinal":"Risco de encalhe","Leitura":_inv["risco_encalhe"]},
+        {"Sinal":"Histórico","Leitura":f"{_inv['snapshots']} snapshots"},
+        {"Sinal":"Riscos especiais","Leitura":", ".join(_inv["riscos"]) if _inv["riscos"] else "Nenhum sinal especial nos dados atuais"},
+    ]
+    st.dataframe(pd.DataFrame(_detail_rows),use_container_width=True,hide_index=True)
+
+    _c1,_c2=st.columns(2)
+    with _c1:
+        st.markdown("#### ✅ Pontos fortes")
+        if _inv["pontos_fortes"]:
+            for _x in _inv["pontos_fortes"]:
+                st.write("•",_x)
+        else:
+            st.write("• Nenhum ponto forte decisivo confirmado.")
+    with _c2:
+        st.markdown("#### ⚠️ Alertas")
+        if _inv["alertas"]:
+            for _x in _inv["alertas"]:
+                st.write("•",_x)
+        else:
+            st.write("• Nenhum alerta relevante nos campos atuais.")
+
+    st.markdown("#### ⏱️ Por que agora?")
+    for _x in _inv["por_que_agora"]:
+        st.write("•",_x)
+
+    _top_gap=_inv.get("top_brecha")
+    if _top_gap:
+        st.markdown("#### 🎯 Principal brecha entre concorrentes semelhantes")
+        st.write(
+            f"**{_top_gap.get('status_concorrente','')} — Vulnerabilidade {_top_gap.get('vulnerabilidade',0)}**  "
+            f"| {_top_gap.get('produto','')}"
+        )
+        st.write("**Brechas:**",_top_gap.get("brechas",""))
+        st.write("**Como atacar:**",_top_gap.get("como_atacar",""))
+
+    if _inv["concorrentes"]:
+        with st.expander(f"Ver {len(_inv['concorrentes'])} concorrentes semelhantes analisados"):
+            _df_inv_comp=pd.DataFrame(_inv["concorrentes"])
+            st.dataframe(
+                _df_inv_comp,
+                use_container_width=True,
+                hide_index=True,
+                column_config={"url":st.column_config.LinkColumn("Abrir anúncio")}
+            )
+
+    st.markdown("#### 🧾 Confiança da investigação")
+    st.write(f"**{_inv['confianca']} ({_inv['confianca_score']}/100)** — {_inv['confianca_motivo']}")
+
+    st.markdown("#### 🔒 O que ainda falta antes de colocar dinheiro")
+    for _x in _inv["faltando"]:
+        st.write("•",_x)
+
+    if _inv["gate"]=="ads":
+        if st.button("🧠 Preparar para o Cérebro de Anúncios",type="primary",key="send_to_ads_brain"):
+            st.session_state["ads_brain_candidate"]=_inv
+            st.success("Produto aprovado e separado para a próxima etapa: Cérebro de Anúncios.")
     st.divider()
     st.subheader("🛒 Shopee Real — Nexscope")
     st.caption("Busca direta de produtos reais da Shopee Brasil. A Brave continua apenas como apoio para fornecedores e contexto.")

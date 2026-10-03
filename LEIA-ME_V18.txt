@@ -1,0 +1,35 @@
+GARIMPEIRO V18 — INVESTIGAÇÃO APROFUNDADA
+
+Base oficial: V17 Persistência Real.
+
+A rota permanece fixa:
+Descoberta automática
+→ Oportunidade Hoje
+→ Sazonalidade
+→ Aceleração
+→ Concorrentes Vulneráveis
+→ Investigação Aprofundada
+→ Cérebro de Anúncios
+→ Previsão
+→ Alertas
+→ Auditoria
+→ Resumo Executivo
+→ Fornecedor/custo/margem após aprovação.
+
+Novo na V18:
+- Seleção de oportunidade já coletada.
+- Não consome Nexscope.
+- Consolida oportunidade, sazonalidade, aceleração e riscos.
+- Busca concorrentes SEMELHANTES dentro da coleta existente.
+- Mostra principal brecha competitiva e como atacar.
+- Calcula confiança da investigação conforme disponibilidade de dados.
+- Explica “por que agora”.
+- Mostra o que ainda falta antes de colocar dinheiro.
+- Gate:
+  🟢 APROVADO PARA CÉREBRO DE ANÚNCIOS
+  🟡 MANTER EM INVESTIGAÇÃO / MONITORAR
+  🔴 REVISAR RISCO ANTES DE AVANÇAR
+  ⚪ NÃO PRIORIZAR AGORA
+- Produto aprovado pode ser separado para o futuro Cérebro de Anúncios.
+
+Nenhum fornecedor/custo é buscado automaticamente nesta etapa.
