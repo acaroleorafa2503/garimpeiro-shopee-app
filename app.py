@@ -1,3 +1,4 @@
+from executive_summary_engine import build_executive_summary
 from audit_engine import build_audit_snapshot, merge_legacy_decisions
 from alerts_engine import build_alerts as build_smart_alerts
 from forecast_engine import build_realistic_forecast
@@ -130,7 +131,7 @@ if "persistent_bootstrap_done" not in st.session_state:
         except Exception as _persist_err:
             st.session_state["persistence_error"]=str(_persist_err)
 
-st.title("🚀 Garimpeiro Shopee — V23 Auditoria")
+st.title("🚀 Garimpeiro Shopee — V24 Resumo Executivo")
 
 with st.expander("🧪 Diagnóstico da versão"):
     _sc=run_selfcheck()
@@ -1745,7 +1746,65 @@ else:
                 st.caption("A decisão é uma triagem operacional baseada nos dados disponíveis e nas premissas preenchidas. Confirme cotação, taxas aplicáveis e condições reais antes de comprar estoque.")
 
 with tabs[1]:
-    st.dataframe(pd.DataFrame(s["top_products"]),use_container_width=True,hide_index=True)
+    st.subheader("📋 Resumo Executivo")
+    st.caption("Consolida toda a rota oficial em uma leitura única de decisão.")
+
+    _exec_products=st.session_state.get("auto_discovery_products") or []
+    _exec_clusters=st.session_state.get("auto_discovery_clusters") or []
+    _exec_investigation=st.session_state.get("ads_brain_candidate") or {}
+    _exec_ads=st.session_state.get("ads_brain_plan") or {}
+    _exec_forecast=st.session_state.get("forecast_result") or {}
+    _exec_alerts=st.session_state.get("smart_alerts_result") or {}
+
+    _exec=build_executive_summary(
+        products=_exec_products,
+        clusters=_exec_clusters,
+        investigation=_exec_investigation,
+        ads_plan=_exec_ads,
+        forecast=_exec_forecast,
+        alerts=_exec_alerts,
+    )
+    st.session_state["executive_summary_result"]=_exec
+
+    if _exec["status_final"].startswith("🟢"):
+        st.success(_exec["status_final"])
+    elif _exec["status_final"].startswith("🔴"):
+        st.error(_exec["status_final"])
+    elif _exec["status_final"].startswith("🟡"):
+        st.warning(_exec["status_final"])
+    else:
+        st.info(_exec["status_final"])
+
+    _ex1,_ex2,_ex3,_ex4=st.columns(4)
+    _ex1.metric("Oportunidade",_exec["oportunidade"])
+    _ex2.metric("Aceleração",_exec["aceleracao"])
+    _ex3.metric("Confiança",_exec["confianca"])
+    _ex4.metric("Alertas altos",_exec["alertas_alta"])
+
+    st.markdown("### 🏆 Produto em foco")
+    st.write(f"**{_exec['produto']}**")
+
+    st.markdown("#### Por que merece atenção")
+    st.write(_exec["por_que"])
+
+    st.markdown("#### Momento de entrada")
+    st.write("**Sazonalidade:**",_exec["sazonalidade"])
+    st.write("**Previsão:**",_exec["previsao"])
+
+    st.markdown("#### Principal brecha competitiva")
+    st.write(_exec["principal_brecha"])
+
+    st.markdown("#### Risco")
+    st.write(_exec["risco"])
+
+    st.markdown("#### Cérebro de Anúncios")
+    st.write(_exec["plano_ads"])
+
+    st.markdown("### ➡️ Próxima ação")
+    st.info(_exec["proxima_acao"])
+
+    if not _exec["tem_dados"]:
+        st.caption("O resumo será preenchido automaticamente após a próxima coleta persistida.")
 
 with tabs[2]:
     r=latest_snapshots()

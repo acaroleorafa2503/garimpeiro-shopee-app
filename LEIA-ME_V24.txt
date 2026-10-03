@@ -1,0 +1,42 @@
+GARIMPEIRO V24 — RESUMO EXECUTIVO
+
+Base oficial: V23.
+
+A rota principal está completa.
+
+O Resumo Executivo consolida:
+- produto em foco
+- score de oportunidade
+- aceleração
+- confiança
+- sazonalidade
+- previsão
+- principal brecha competitiva
+- risco
+- status do Cérebro de Anúncios
+- alertas de alta prioridade
+- próxima ação
+
+Objetivo:
+Responder de forma simples:
+1. Qual produto merece atenção?
+2. Por quê?
+3. É hora de entrar?
+4. Qual é a brecha?
+5. Qual é o risco?
+6. Qual é a próxima ação?
+
+Rota concluída:
+Descoberta automática
+→ Oportunidade Hoje
+→ Sazonalidade
+→ Aceleração
+→ Concorrentes Vulneráveis
+→ Investigação Aprofundada
+→ Cérebro de Anúncios
+→ Previsão Realista
+→ Alertas Inteligentes
+→ Auditoria Oficial
+→ Resumo Executivo
+
+Fornecedor, custo e margem continuam como gate posterior à aprovação comercial.
