@@ -1,0 +1,17 @@
+GARIMPEIRO V24.1 — CORREÇÃO DO RESUMO EXECUTIVO
+
+Erro corrigido:
+- O novo executive_summary_engine importava build_executive_summary.
+- Depois, o app legado importava outro build_executive_summary com o mesmo nome.
+- O segundo import sobrescrevia o primeiro.
+- Isso causava TypeError na nova aba Resumo Executivo.
+
+Correção:
+- O novo módulo agora usa o alias build_official_executive_summary.
+- O build_executive_summary antigo continua intacto para os KPIs legados do topo.
+- Nenhuma outra lógica da V24 foi alterada.
+
+Resultado esperado:
+- Alertas Inteligentes continuam normais.
+- Auditoria continua normal.
+- Resumo Executivo abre sem TypeError.

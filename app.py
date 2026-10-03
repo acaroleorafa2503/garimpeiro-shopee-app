@@ -1,4 +1,4 @@
-from executive_summary_engine import build_executive_summary
+from executive_summary_engine import build_executive_summary as build_official_executive_summary
 from audit_engine import build_audit_snapshot, merge_legacy_decisions
 from alerts_engine import build_alerts as build_smart_alerts
 from forecast_engine import build_realistic_forecast
@@ -1756,7 +1756,7 @@ with tabs[1]:
     _exec_forecast=st.session_state.get("forecast_result") or {}
     _exec_alerts=st.session_state.get("smart_alerts_result") or {}
 
-    _exec=build_executive_summary(
+    _exec=build_official_executive_summary(
         products=_exec_products,
         clusters=_exec_clusters,
         investigation=_exec_investigation,
