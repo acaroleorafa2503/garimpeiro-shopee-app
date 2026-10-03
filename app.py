@@ -1,3 +1,4 @@
+from competitor_engine import analyze_market, strategy_from_market
 from seasonality_engine import apply_seasonality_to_rows, detect_seasonality
 from selfcheck import run_selfcheck
 from auto_discovery import CATEGORY_SEEDS, discovery_plan, merge_discovery_results, rank_discovered, estimated_calls, discovery_run_summary, top_candidates, filter_by_category_relevance, build_commercial_clusters
@@ -359,6 +360,62 @@ with tabs[0]:
         st.caption("Nenhuma varredura automática executada nesta sessão.")
 
     st.caption("O modo manual abaixo fica apenas para uma investigação específica; o fluxo principal é o Garimpo Automático.")
+    st.divider()
+
+    st.subheader("🎯 Concorrentes Vulneráveis")
+    st.caption("Analisa os produtos já coletados. Não consome créditos Nexscope.")
+
+    _comp_products=st.session_state.get("auto_discovery_products") or []
+    if not _comp_products:
+        _ranked_old=st.session_state.get("auto_discovery_ranked") or []
+        _comp_products=[r.get("_product") for r in _ranked_old if isinstance(r,dict) and r.get("_product")]
+
+    if not _comp_products:
+        st.info("Ainda não há produtos coletados nesta sessão para analisar concorrentes.")
+    else:
+        _analysis=analyze_market(_comp_products)
+        _rows_comp=_analysis.get("rows",[])
+        _strategy=strategy_from_market(_analysis)
+
+        if _rows_comp:
+            _ctx=_analysis.get("context",{})
+            c1,c2,c3,c4=st.columns(4)
+            c1.metric("Concorrentes analisados",len(_rows_comp))
+            c2.metric("Preço mediano",f"R$ {_ctx.get('median_price',0):.2f}")
+            c3.metric("Avaliação mediana",f"{_ctx.get('median_rating',0):.2f}")
+            c4.metric("Vendas medianas 30d",int(_ctx.get("median_sales",0)))
+
+            st.markdown("#### 🧨 Onde existem brechas")
+            _df_comp=pd.DataFrame(_rows_comp)
+            _comp_cols=[
+                "vulnerabilidade","status_concorrente","loja","produto","preco",
+                "vendidos_30d","avaliacao","qtd_avaliacoes","brechas","forcas",
+                "como_atacar","url"
+            ]
+            st.dataframe(
+                _df_comp[_comp_cols],
+                use_container_width=True,
+                hide_index=True,
+                column_config={"url":st.column_config.LinkColumn("Abrir anúncio")}
+            )
+
+            _top_comp=_analysis.get("top_vulnerable")
+            if _top_comp:
+                st.markdown("#### 🥊 Melhor brecha competitiva encontrada")
+                st.success(
+                    f"{_top_comp['status_concorrente']} | Loja: {_top_comp['loja'] or '—'} | "
+                    f"Vulnerabilidade: {_top_comp['vulnerabilidade']} | "
+                    f"Vendas 30d: {_top_comp['vendidos_30d']} | "
+                    f"Brechas: {_top_comp['brechas']}"
+                )
+
+            st.markdown("#### 🧠 Como entrar contra esse mercado")
+            st.write("**Leitura:**",_strategy["headline"])
+            st.write("**Preço:**",_strategy["price_strategy"])
+            st.write("**Prova social:**",_strategy["social_strategy"])
+            st.write("**Oferta:**",_strategy["offer_strategy"])
+            st.write("**Criativo/listagem:**",_strategy["creative_strategy"])
+
     st.divider()
     st.subheader("🛒 Shopee Real — Nexscope")
     st.caption("Busca direta de produtos reais da Shopee Brasil. A Brave continua apenas como apoio para fornecedores e contexto.")

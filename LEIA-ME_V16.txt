@@ -1,0 +1,23 @@
+GARIMPEIRO V16 — CONCORRENTES VULNERÁVEIS
+
+Arquitetura-mestra mantida:
+Descoberta automática
+→ Oportunidade Hoje
+→ Sazonalidade
+→ Aceleração
+→ Concorrentes Vulneráveis
+→ Investigação
+→ Estratégia de anúncio
+→ Previsão
+→ Alertas
+→ Auditoria
+→ Resumo executivo
+→ Fornecedor/custo/margem depois.
+
+Novo módulo:
+- Analisa concorrentes usando os produtos já coletados.
+- Não consome créditos Nexscope.
+- Mede vulnerabilidade por nota, avaliações, preço, força da loja e vendas.
+- Mostra forças e brechas.
+- Sugere como atacar o mercado sem depender apenas de preço.
+- Identifica melhor brecha competitiva.
