@@ -208,7 +208,19 @@ with tabs[0]:
 
 
         st.markdown("#### 🏆 Oportunidades comerciais encontradas")
+        st.caption("♻️ Se já existirem produtos coletados na sessão, o ranking é reconstruído localmente sem consumir novos créditos Nexscope.")
         _clusters_auto=st.session_state.get("auto_discovery_clusters") or []
+    if not _clusters_auto:
+        _existing_products=st.session_state.get("auto_discovery_products") or []
+        if not _existing_products:
+            _old_ranked=st.session_state.get("auto_discovery_ranked") or []
+            _existing_products=[r.get("_product") for r in _old_ranked if isinstance(r,dict) and r.get("_product")]
+        if _existing_products:
+            try:
+                _clusters_auto=build_commercial_clusters(_existing_products)
+                st.session_state["auto_discovery_clusters"]=_clusters_auto
+            except Exception as _cluster_err:
+                st.warning(f"Não foi possível reconstruir o ranking local: {_cluster_err}")
 
         if _clusters_auto:
             _dfc=pd.DataFrame(_clusters_auto)
@@ -290,6 +302,16 @@ with tabs[0]:
     st.divider()
 
     st.markdown("#### ✅ Status do Garimpeiro Automático")
+    _status_clusters=st.session_state.get("auto_discovery_clusters") or []
+    if not _status_clusters:
+        _status_products=st.session_state.get("auto_discovery_products") or []
+        if _status_products:
+            try:
+                _status_clusters=build_commercial_clusters(_status_products)
+                st.session_state["auto_discovery_clusters"]=_status_clusters
+            except Exception:
+                _status_clusters=[]
+
     _summary_auto=st.session_state.get("auto_discovery_summary")
     if not _summary_auto and st.session_state.get("auto_discovery_ranked"):
         _summary_auto=discovery_run_summary(
@@ -297,15 +319,23 @@ with tabs[0]:
             st.session_state.get("auto_discovery_errors") or []
         )
     _run_at=st.session_state.get("auto_discovery_run_at")
-    if _summary_auto:
+    if _status_clusters:
+        _s1,_s2,_s3,_s4,_s5=st.columns(5)
+        _s1.metric("Oportunidades agrupadas",len(_status_clusters))
+        _s2.metric("Prioridade máxima",len([r for r in _status_clusters if r.get("acao")=="🚀 PRIORIDADE MÁXIMA"]))
+        _s3.metric("Investigar agora",len([r for r in _status_clusters if r.get("acao")=="🟢 INVESTIGAR AGORA"]))
+        _s4.metric("Monitorar",len([r for r in _status_clusters if r.get("acao")=="🟡 MONITORAR + INVESTIGAR"]))
+        _s5.metric("Revisar risco",len([r for r in _status_clusters if r.get("acao")=="🔴 REVISAR RISCO"]))
+        if _run_at:
+            st.caption(f"Última varredura registrada: {_run_at}")
+        st.caption("Ranking comercial reconstruído localmente quando possível — sem nova chamada Nexscope.")
+    elif _summary_auto:
         _s1,_s2,_s3,_s4,_s5=st.columns(5)
         _s1.metric("Produtos únicos",_summary_auto.get("unique_products",0))
         _s2.metric("Prioridade alta",_summary_auto.get("priority_high",0))
         _s3.metric("Investigar",_summary_auto.get("investigate",0))
         _s4.metric("Com histórico",_summary_auto.get("with_history",0))
         _s5.metric("Erros",_summary_auto.get("errors",0))
-        if _run_at:
-            st.caption(f"Última varredura registrada: {_run_at}")
     else:
         st.caption("Nenhuma varredura automática executada nesta sessão.")
 

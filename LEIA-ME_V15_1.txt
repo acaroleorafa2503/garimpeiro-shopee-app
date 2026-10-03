@@ -1,0 +1,11 @@
+GARIMPEIRO V15.1 — REAPROVEITAMENTO DA COLETA
+
+Correção:
+- Não exige repetir a varredura Nexscope após atualizar a versão.
+- Se os produtos antigos ainda estiverem na sessão, reconstrói clusters e ranking localmente.
+- Não gasta novas chamadas Nexscope para refazer apenas a análise.
+- O Status do Garimpeiro passa a mostrar as ações comerciais da V15:
+  Prioridade Máxima / Investigar Agora / Monitorar / Revisar Risco.
+- Mantém fallback para o ranking antigo caso os dados estruturados não existam.
+
+Objetivo: eliminar retrabalho e consumo desnecessário de créditos.
