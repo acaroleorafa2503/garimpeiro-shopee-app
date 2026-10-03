@@ -507,13 +507,40 @@ with tabs[0]:
     _has_clusters=bool(st.session_state.get("auto_discovery_clusters"))
     _ads_ready=bool(st.session_state.get("ads_brain_candidate"))
     _f1,_f2,_f3,_f4,_f5,_f6,_f7=st.columns(7)
-    _f1.success("1. Descoberta") if _has_products else _f1.info("1. Descoberta")
-    _f2.success("2. Oportunidade") if _has_clusters else _f2.info("2. Oportunidade")
-    _f3.success("3. Sazonalidade") if _has_clusters else _f3.info("3. Sazonalidade")
-    _f4.success("4. Aceleração") if _has_products else _f4.info("4. Aceleração")
-    _f5.success("5. Concorrentes") if _has_products else _f5.info("5. Concorrentes")
-    _f6.success("6. Investigação") if _has_clusters else _f6.info("6. Investigação")
-    _f7.success("7. Cérebro Ads") if _ads_ready else _f7.info("7. Cérebro Ads")
+    if _has_products:
+        _f1.success("1. Descoberta")
+    else:
+        _f1.info("1. Descoberta")
+
+    if _has_clusters:
+        _f2.success("2. Oportunidade")
+    else:
+        _f2.info("2. Oportunidade")
+
+    if _has_clusters:
+        _f3.success("3. Sazonalidade")
+    else:
+        _f3.info("3. Sazonalidade")
+
+    if _has_products:
+        _f4.success("4. Aceleração")
+    else:
+        _f4.info("4. Aceleração")
+
+    if _has_products:
+        _f5.success("5. Concorrentes")
+    else:
+        _f5.info("5. Concorrentes")
+
+    if _has_clusters:
+        _f6.success("6. Investigação")
+    else:
+        _f6.info("6. Investigação")
+
+    if _ads_ready:
+        _f7.success("7. Cérebro Ads")
+    else:
+        _f7.info("7. Cérebro Ads")
     st.caption("Esta é a rota fixa do projeto. Ferramentas antigas/técnicas ficam recolhidas e não alteram o fluxo principal.")
     st.subheader("🔬 Investigação Aprofundada")
     st.caption("Consolida os dados já coletados. Não faz nova chamada Nexscope e não procura fornecedor nesta etapa.")

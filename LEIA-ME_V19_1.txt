@@ -1,0 +1,12 @@
+GARIMPEIRO V19.1 — CORREÇÃO DO PAINEL DA ROTA
+
+Correção:
+- Removidas expressões condicionais em linha que faziam o Streamlit imprimir
+  objetos internos DeltaGenerator na tela.
+- Substituído por if/else explícito.
+- Nenhuma lógica da V19 foi alterada.
+- Persistência, investigação, concorrentes, proteção de créditos e módulos
+  técnicos permanecem exatamente como estavam.
+
+Resultado esperado:
+O painel mostra apenas os 7 blocos da rota oficial, sem texto técnico interno.
