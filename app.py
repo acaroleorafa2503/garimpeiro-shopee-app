@@ -186,47 +186,68 @@ st.divider()
 st.subheader("🏭 Caçador de Fornecedores e Preços")
 st.caption("Procura atacadistas, distribuidores e fabricantes usando nomes alternativos do produto. Esta etapa faz novas buscas da API.")
 
-h1,h2=st.columns([3,1])
-hunter_product=h1.text_input("Produto para caçar fornecedores",value=selected_product,key="hunter_product")
-hunter_queries=h2.selectbox("Buscas de fornecedores",[4,5,6,8,10],index=2,key="hunter_queries")
-st.caption(f"Esta busca consumirá no máximo {hunter_queries} solicitações adicionais da Brave Search API.")
+radar_result_for_hunter = st.session_state.get("radar_result") or {}
+hunter_rows = radar_result_for_hunter.get("rows", []) if isinstance(radar_result_for_hunter, dict) else []
+hunter_candidates = [
+    x.get("oportunidade","")
+    for x in hunter_rows
+    if isinstance(x, dict) and x.get("oportunidade")
+]
+hunter_candidates = list(dict.fromkeys(hunter_candidates))
 
-if st.button("🏭 Caçar fornecedores",key="run_supplier_hunter"):
-    with st.spinner(f"Procurando fornecedores para {hunter_product}..."):
-        hunt=hunt_suppliers(hunter_product,hunter_queries,8)
-        st.session_state["supplier_hunt_result"]=hunt
+if not hunter_candidates:
+    st.info("Primeiro rode o Radar e gere pelo menos um produto candidato. Depois o Caçador de Fornecedores será liberado.")
+else:
+    default_product = st.session_state.get("investigator_product")
+    if default_product not in hunter_candidates:
+        default_product = hunter_candidates[0]
 
-hunt=st.session_state.get("supplier_hunt_result")
-if hunt and hunt.get("product")==hunter_product:
-    if not hunt.get("enabled"):
-        st.error(hunt.get("message"))
-    else:
-        hA,hB,hC,hD=st.columns(4)
-        hA.metric("Fornecedores encontrados",hunt.get("suppliers_found",0))
-        ps_h=hunt.get("price_stats",{})
-        hB.metric("Menor preço público",f"R$ {ps_h['min']:.2f}" if ps_h.get("min") else "Sem dado")
-        hC.metric("Preço mediano fornecedor",f"R$ {ps_h['median']:.2f}" if ps_h.get("median") else "Sem dado")
-        hD.metric("Buscas usadas",hunt.get("queries_used",0))
+    h1,h2=st.columns([3,1])
+    hunter_product=h1.selectbox(
+        "Produto para caçar fornecedores",
+        hunter_candidates,
+        index=hunter_candidates.index(default_product),
+        key="hunter_product_select"
+    )
+    hunter_queries=h2.selectbox("Buscas de fornecedores",[4,5,6,8,10],index=2,key="hunter_queries")
+    st.caption(f"Esta busca consumirá no máximo {hunter_queries} solicitações adicionais da Brave Search API.")
 
-        variants=hunt.get("variants",[])
-        if variants:
-            st.write("**Nomes usados na procura:** " + " • ".join(variants))
+    if st.button("🏭 Caçar fornecedores",key="run_supplier_hunter"):
+        with st.spinner(f"Procurando fornecedores para {hunter_product}..."):
+            hunt=hunt_suppliers(hunter_product,hunter_queries,8)
+            st.session_state["supplier_hunt_result"]=hunt
 
-        rows_h=hunt.get("rows",[])
-        if rows_h:
-            hdf=pd.DataFrame(rows_h)
-            cols_h=["fornecedor","fonte","score_fornecedor","precos_encontrados","moq_estimado","descricao","url"]
-            for c in cols_h:
-                if c not in hdf.columns:
-                    hdf[c]=""
-            st.dataframe(hdf[cols_h],use_container_width=True,hide_index=True,
-                column_config={"url":st.column_config.LinkColumn("Abrir fornecedor")})
+    hunt=st.session_state.get("supplier_hunt_result")
+    if hunt and hunt.get("product")==hunter_product:
+        if not hunt.get("enabled"):
+            st.error(hunt.get("message"))
         else:
-            st.warning("Nenhum fornecedor confiável foi encontrado nesta rodada. Tente aumentar as buscas ou ajustar o nome do produto.")
+            hA,hB,hC,hD=st.columns(4)
+            hA.metric("Fornecedores encontrados",hunt.get("suppliers_found",0))
+            ps_h=hunt.get("price_stats",{})
+            hB.metric("Menor preço público",f"R$ {ps_h['min']:.2f}" if ps_h.get("min") else "Sem dado")
+            hC.metric("Preço mediano fornecedor",f"R$ {ps_h['median']:.2f}" if ps_h.get("median") else "Sem dado")
+            hD.metric("Buscas usadas",hunt.get("queries_used",0))
 
-        if hunt.get("errors"):
-            with st.expander("Erros de algumas consultas de fornecedor"):
-                st.write(hunt["errors"])
+            variants=hunt.get("variants",[])
+            if variants:
+                st.write("**Nomes usados na procura:** " + " • ".join(variants))
+
+            rows_h=hunt.get("rows",[])
+            if rows_h:
+                hdf=pd.DataFrame(rows_h)
+                cols_h=["fornecedor","fonte","score_fornecedor","precos_encontrados","moq_estimado","descricao","url"]
+                for c in cols_h:
+                    if c not in hdf.columns:
+                        hdf[c]=""
+                st.dataframe(hdf[cols_h],use_container_width=True,hide_index=True,
+                    column_config={"url":st.column_config.LinkColumn("Abrir fornecedor")})
+            else:
+                st.warning("Nenhum fornecedor confiável foi encontrado nesta rodada. Tente aumentar as buscas ou ajustar o nome do produto.")
+
+            if hunt.get("errors"):
+                with st.expander("Erros de algumas consultas de fornecedor"):
+                    st.write(hunt["errors"])
 
 with tabs[1]:
     st.dataframe(pd.DataFrame(s["top_products"]),use_container_width=True,hide_index=True)
