@@ -224,10 +224,14 @@ else:
         else:
             hA,hB,hC,hD=st.columns(4)
             hA.metric("Fornecedores encontrados",hunt.get("suppliers_found",0))
-            ps_h=hunt.get("price_stats",{})
-            hB.metric("Menor preço público",f"R$ {ps_h['min']:.2f}" if ps_h.get("min") else "Sem dado")
-            hC.metric("Preço mediano fornecedor",f"R$ {ps_h['median']:.2f}" if ps_h.get("median") else "Sem dado")
+            hB.metric("Confirmados",hunt.get("suppliers_confirmed",0))
+            hC.metric("Possíveis",hunt.get("suppliers_possible",0))
             hD.metric("Buscas usadas",hunt.get("queries_used",0))
+
+            ps_h=hunt.get("price_stats",{})
+            hp1,hp2=st.columns(2)
+            hp1.metric("Menor preço público",f"R$ {ps_h['min']:.2f}" if ps_h.get("min") else "Sem dado")
+            hp2.metric("Preço mediano fornecedor",f"R$ {ps_h['median']:.2f}" if ps_h.get("median") else "Sem dado")
 
             variants=hunt.get("variants",[])
             if variants:
@@ -236,7 +240,7 @@ else:
             rows_h=hunt.get("rows",[])
             if rows_h:
                 hdf=pd.DataFrame(rows_h)
-                cols_h=["fornecedor","fonte","score_fornecedor","precos_encontrados","moq_estimado","descricao","url"]
+                cols_h=["status_fornecedor","fornecedor","confianca","evidencias","acao_sugerida","fonte","score_fornecedor","precos_encontrados","moq_estimado","descricao","url"]
                 for c in cols_h:
                     if c not in hdf.columns:
                         hdf[c]=""

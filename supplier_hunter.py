@@ -250,9 +250,43 @@ def hunt_suppliers(product_name,max_queries=6,results_per_query=8):
             moq=_extract_moq(f"{title} {desc}")
             status=_supplier_status(title,desc,domain)
 
+            evidence=[]
+            text_all=_norm(f"{title} {desc}")
+            if any(x in text_all for x in ("atacado","atacadista","venda por atacado","somente atacado")):
+                evidence.append("atacado")
+            if any(x in text_all for x in ("distribuidor","distribuidora")):
+                evidence.append("distribuidor")
+            if any(x in text_all for x in ("fabricante","fábrica","fabrica")):
+                evidence.append("fabricante")
+            if any(x in text_all for x in ("lojista","revendedor","revenda")):
+                evidence.append("revenda/lojista")
+            if any(x in text_all for x in ("pedido mínimo","pedido minimo","lote mínimo","lote minimo","caixa fechada")):
+                evidence.append("mínimo/lote")
+            if prices:
+                evidence.append("preço público")
+            if moq:
+                evidence.append("MOQ identificado")
+
+            if status=="✅ Confirmado" and prices and moq:
+                confidence="Alta"
+            elif status=="✅ Confirmado":
+                confidence="Média"
+            else:
+                confidence="Baixa"
+
+            if status=="✅ Confirmado" and prices:
+                action="Comparar custo e pedir condição comercial"
+            elif status=="✅ Confirmado":
+                action="Solicitar cotação"
+            else:
+                action="Validar se vende para revenda"
+
             rows.append({
                 "fornecedor":title[:180],
                 "status_fornecedor":status,
+                "confianca":confidence,
+                "evidencias":", ".join(evidence) if evidence else "sinais comerciais limitados",
+                "acao_sugerida":action,
                 "fonte":domain,
                 "score_fornecedor":min(100,35+likelihood*10),
                 "preco_publico_min":min(prices) if prices else None,
