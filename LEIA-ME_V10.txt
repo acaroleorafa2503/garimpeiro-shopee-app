@@ -1,0 +1,16 @@
+GARIMPEIRO V10 — SHOPEE REAL VIA NEXSCOPE
+
+Pré-requisito:
+NEXSCOPE_API_KEY salva nos Secrets do Streamlit.
+
+Novo:
+- Busca direta de produtos reais da Shopee Brasil.
+- Filtros por termo, preço, vendas, avaliação e vendedores locais.
+- Ordenação por vendas 30d, vendas históricas, faturamento, rating, avaliações, favoritos, data e preço.
+- Exibe preço, vendas, faturamento, avaliações, estoque, loja e link.
+- Botão para enviar um produto real ao Investigador Automático.
+- Resultados também alimentam structured_shopee_rows para os módulos de preço/custo.
+- Brave permanece como apoio.
+
+Endpoint:
+https://api.nexscope.ai/api/skill-api/v1/skills/shopee-product-search/run

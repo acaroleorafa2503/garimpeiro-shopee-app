@@ -14,6 +14,7 @@ from executor_assistido import generate_drafts
 from scheduler import run_due
 from backup_audit import backup,integrity_check
 from opportunity_radar import run_opportunity_radar, CATEGORY_LABELS, MODE_HINTS
+from nexscope_shopee import search_products, as_structured_shopee_rows, ORDER_LABELS, enabled as nexscope_enabled
 from deep_investigator import investigate_product
 from supplier_hunter import hunt_suppliers
 from final_evaluator import evaluate_product
@@ -50,6 +51,119 @@ tabs=st.tabs([
 ])
 
 with tabs[0]:
+
+    st.subheader("🛒 Shopee Real — Nexscope")
+    st.caption("Busca direta de produtos reais da Shopee Brasil. A Brave continua apenas como apoio para fornecedores e contexto.")
+
+    if not nexscope_enabled():
+        st.error("NEXSCOPE_API_KEY não encontrada nos Secrets do Streamlit.")
+    else:
+        ns1,ns2,ns3=st.columns([3,1,1])
+        ns_keyword=ns1.text_input("O que procurar na Shopee?",placeholder="Ex.: suporte celular carro",key="ns_keyword")
+        ns_page_size=ns2.selectbox("Resultados",[10,20,30,50],index=1,key="ns_page_size")
+        ns_page=ns3.number_input("Página",min_value=1,value=1,step=1,key="ns_page")
+
+        ns4,ns5,ns6=st.columns([2,1,1])
+        ns_order_label=ns4.selectbox("Ordenar por",list(ORDER_LABELS.keys()),index=0,key="ns_order")
+        ns_sold_min=ns5.number_input("Vendas mín. 30d",min_value=0,value=0,step=10,key="ns_sold_min")
+        ns_rating_min=ns6.number_input("Avaliação mín.",min_value=0.0,max_value=5.0,value=0.0,step=0.1,key="ns_rating_min")
+
+        ns7,ns8,ns9=st.columns([1,1,1])
+        ns_price_min=ns7.number_input("Preço mín. (R$)",min_value=0.0,value=0.0,step=5.0,key="ns_price_min")
+        ns_price_max=ns8.number_input("Preço máx. (R$)",min_value=0.0,value=0.0,step=5.0,key="ns_price_max")
+        ns_local_only=ns9.checkbox("Somente vendedores locais",value=False,key="ns_local_only")
+
+        st.caption("A Nexscope cobra créditos por chamada; confira o custo vigente no painel da sua conta.")
+
+        if st.button("🛒 Buscar produtos reais na Shopee",type="primary",key="ns_run"):
+            if not ns_keyword.strip():
+                st.warning("Digite um produto ou termo para buscar.")
+            else:
+                with st.spinner("Consultando Shopee Brasil pela Nexscope..."):
+                    ns_result=search_products(
+                        keyword=ns_keyword,
+                        station="BR",
+                        page=int(ns_page),
+                        page_size=int(ns_page_size),
+                        keyword_type=2,
+                        order_by=ORDER_LABELS[ns_order_label],
+                        order_by_type="DESC",
+                        price_min=ns_price_min if ns_price_min>0 else None,
+                        price_max=ns_price_max if ns_price_max>0 else None,
+                        sold_min=ns_sold_min if ns_sold_min>0 else None,
+                        rating_min=ns_rating_min if ns_rating_min>0 else None,
+                        local_only=ns_local_only,
+                    )
+                    st.session_state["nexscope_result"]=ns_result
+                    if ns_result.get("ok"):
+                        st.session_state["structured_shopee_rows"]=as_structured_shopee_rows(ns_result)
+
+        ns_result=st.session_state.get("nexscope_result")
+        if ns_result:
+            if not ns_result.get("ok"):
+                st.error("Falha na busca Shopee: "+str(ns_result.get("error","Erro desconhecido")))
+            else:
+                summary=ns_result.get("summary",{})
+                a,b,c,d,e=st.columns(5)
+                a.metric("Produtos retornados",len(ns_result.get("products",[])))
+                b.metric("Resultados disponíveis",summary.get("total_size") or "—")
+                mp=summary.get("median_price")
+                c.metric("Preço mediano",f"R$ {mp:.2f}" if isinstance(mp,(int,float)) else "Sem dado")
+                d.metric("Vendas medianas 30d",summary.get("median_sold_30d",0))
+                mr=summary.get("median_rating")
+                e.metric("Avaliação mediana",f"{mr:.2f}" if isinstance(mr,(int,float)) else "Sem dado")
+
+                ns_products=ns_result.get("products",[])
+                if ns_products:
+                    ns_df=pd.DataFrame(ns_products)
+                    ns_cols=[
+                        "score_shopee","classificacao","produto","preco","vendidos_30d",
+                        "vendidos_historicos","faturamento_30d","avaliacao","qtd_avaliacoes",
+                        "estoque","loja","local_loja","oficial","preferida","cross_border","url"
+                    ]
+                    for col in ns_cols:
+                        if col not in ns_df.columns:
+                            ns_df[col]=""
+                    st.dataframe(
+                        ns_df[ns_cols],
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={"url":st.column_config.LinkColumn("Abrir na Shopee")}
+                    )
+
+                    ns_names=[p.get("produto","") for p in ns_products if p.get("produto")]
+                    ns_selected=st.selectbox("Produto real da Shopee para investigar",ns_names,key="ns_selected")
+                    if st.button("➡️ Enviar produto para investigação",key="ns_send"):
+                        chosen=next((p for p in ns_products if p.get("produto")==ns_selected),None)
+                        if chosen:
+                            row={
+                                "score_radar":chosen.get("score_shopee",0),
+                                "classificacao":chosen.get("classificacao",""),
+                                "oportunidade":chosen.get("produto",""),
+                                "evidencia_shopee":"✅ Sim",
+                                "fontes_confirmando":1,
+                                "confirmacoes_secundarias":0,
+                                "fornecedores_sinal":0,
+                                "fontes":"Shopee via Nexscope",
+                                "por_que_agora":chosen.get("por_que",""),
+                                "descricao":f"Preço R$ {chosen.get('preco')} | Vendidos 30d {chosen.get('vendidos_30d')} | Avaliação {chosen.get('avaliacao')}",
+                                "url":chosen.get("url",""),
+                            }
+                            current=st.session_state.get("radar_result") or {}
+                            rows=current.get("rows",[]) if isinstance(current,dict) else []
+                            rows=[r for r in rows if r.get("oportunidade")!=row["oportunidade"]]
+                            rows.insert(0,row)
+                            st.session_state["radar_result"]={
+                                "enabled":True,
+                                "message":"Produto real da Shopee enviado para investigação.",
+                                "queries_used":0,
+                                "results_found":len(rows),
+                                "rows":rows,
+                                "suppliers":current.get("suppliers",[]) if isinstance(current,dict) else [],
+                            }
+                            st.success("Produto enviado. Continue no Investigador Automático abaixo.")
+
+    st.divider()
     st.subheader("🔎 Radar de Oportunidades")
     st.write("O Radar é Shopee‑First: procura evidências ligadas à Shopee primeiro e usa fornecedores, Google e outros marketplaces apenas como confirmação. O Score Radar é um filtro inicial — não é autorização automática para comprar estoque.")
     c1,c2,c3,c4=st.columns([2,2,1,1])
