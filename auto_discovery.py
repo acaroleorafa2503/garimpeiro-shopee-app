@@ -1,3 +1,4 @@
+from opportunity_engine import category_relevance, build_clusters_with_scores
 from scale_radar import scale_signal
 
 CATEGORY_SEEDS = {
@@ -113,3 +114,23 @@ def discovery_run_summary(ranked, errors=None):
 
 def top_candidates(ranked, limit=10):
     return list((ranked or [])[:max(1,int(limit))])
+
+def filter_by_category_relevance(batches, min_score=45):
+    cleaned=[]
+    rejected=[]
+    for batch in batches or []:
+        keep=[]
+        for p in batch.get("products",[]):
+            score,reason=category_relevance(p,batch.get("category"))
+            p=dict(p)
+            p["relevancia_categoria"]=score
+            p["relevancia_motivo"]=reason
+            if score>=min_score:
+                keep.append(p)
+            else:
+                rejected.append({"category":batch.get("category"),"keyword":batch.get("keyword"),"product":p})
+        cleaned.append({**batch,"products":keep})
+    return cleaned,rejected
+
+def build_commercial_clusters(products):
+    return build_clusters_with_scores(products, scale_signal)

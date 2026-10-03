@@ -1,0 +1,16 @@
+GARIMPEIRO V15 — OPORTUNIDADE HOJE + ACELERAÇÃO
+
+- Separa oportunidade comercial atual de aceleração histórica.
+- Produto novo pode ser investigado já no primeiro snapshot.
+- Aceleração continua separada e exige histórico.
+- Agrupa anúncios semelhantes em clusters.
+- Filtra produtos fora da categoria.
+- Marca riscos de saúde/regulado, marca/IP e alto risco operacional.
+- Corrige status da rodada automática.
+- Ações finais:
+  🚀 PRIORIDADE MÁXIMA
+  🟢 INVESTIGAR AGORA
+  🟡 MONITORAR + INVESTIGAR
+  🟠 MERCADO CONCORRIDO
+  🔴 REVISAR RISCO
+  ⚪ BAIXA PRIORIDADE

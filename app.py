@@ -1,5 +1,5 @@
 from selfcheck import run_selfcheck
-from auto_discovery import CATEGORY_SEEDS, discovery_plan, merge_discovery_results, rank_discovered, estimated_calls, discovery_run_summary, top_candidates
+from auto_discovery import CATEGORY_SEEDS, discovery_plan, merge_discovery_results, rank_discovered, estimated_calls, discovery_run_summary, top_candidates, filter_by_category_relevance, build_commercial_clusters
 from scale_radar import save_snapshot, scale_signal, competitor_vulnerability, forecast_from_signal, build_alerts
 from landed_cost import landed_cost_brazil, profitability
 import streamlit as st
@@ -206,51 +206,81 @@ with tabs[0]:
         _m3.metric("Para investigar",len([r for r in _auto_ranked if 65<=r["score_oportunidade"]<80]))
         _m4.metric("Com histórico",len([r for r in _auto_ranked if r["snapshots"]>=2]))
 
-        st.markdown("#### 🏆 Top oportunidades encontradas")
-        _dfa=pd.DataFrame(_auto_ranked)
-        _cols=["score_oportunidade","prioridade","momento","score_escala","snapshots","produto","preco","vendidos_30d","avaliacao","qtd_avaliacoes","loja","categorias","por_que","url"]
-        st.dataframe(_dfa[_cols],use_container_width=True,hide_index=True,column_config={"url":st.column_config.LinkColumn("Abrir na Shopee")})
 
-        _names=[r["produto"] for r in _auto_ranked[:50]]
-        _sel=st.selectbox("Produto descoberto para aprofundar",_names,key="auto_discovery_selected")
-        _chosen=next((r for r in _auto_ranked if r["produto"]==_sel),None)
+        st.markdown("#### 🏆 Oportunidades comerciais encontradas")
+        _clusters_auto=st.session_state.get("auto_discovery_clusters") or []
 
-        if _chosen:
-            st.info(f"Score: {_chosen['score_oportunidade']} | Momento: {_chosen['momento']} | Vendas 30d: {_chosen['vendidos_30d']} | {_chosen['por_que']}")
+        if _clusters_auto:
+            _dfc=pd.DataFrame(_clusters_auto)
+            _cols=[
+                "acao","score_oportunidade_hoje","score_aceleracao","momento","snapshots",
+                "produto","anuncios_similares","preco_representante","preco_mediano_cluster",
+                "vendidos_30d","avaliacao","qtd_avaliacoes","loja","risco","por_que","url"
+            ]
+            st.dataframe(_dfc[_cols],use_container_width=True,hide_index=True,column_config={"url":st.column_config.LinkColumn("Abrir na Shopee")})
 
-            if st.button("➡️ Enviar oportunidade para investigação",key="auto_send_investigation"):
-                _p=_chosen["_product"]
-                _row={
-                    "score_radar":_chosen["score_oportunidade"],
-                    "classificacao":_chosen["prioridade"],
-                    "oportunidade":_p.get("produto",""),
-                    "evidencia_shopee":"✅ Sim",
-                    "fontes_confirmando":1,
-                    "confirmacoes_secundarias":0,
-                    "fornecedores_sinal":0,
-                    "fontes":"Descoberta automática + Shopee via Nexscope",
-                    "por_que_agora":_chosen["por_que"],
-                    "descricao":f"Preço R$ {_p.get('preco')} | Vendidos 30d {_p.get('vendidos_30d')} | Avaliação {_p.get('avaliacao')}",
-                    "url":_p.get("url",""),
-                }
-                _cur=st.session_state.get("radar_result") or {}
-                _rows=_cur.get("rows",[]) if isinstance(_cur,dict) else []
-                _rows=[x for x in _rows if x.get("oportunidade")!=_row["oportunidade"]]
-                _rows.insert(0,_row)
-                st.session_state["radar_result"]={
-                    "enabled":True,
-                    "message":"Oportunidade automática enviada para investigação.",
-                    "queries_used":0,
-                    "results_found":len(_rows),
-                    "rows":_rows,
-                    "suppliers":_cur.get("suppliers",[]) if isinstance(_cur,dict) else [],
-                }
-                st.session_state["nexscope_result"]={
-                    "ok":True,
-                    "products":[x["_product"] for x in _auto_ranked],
-                    "summary":{"total_size":len(_auto_ranked)}
-                }
-                st.success("Produto enviado para o Investigador Automático.")
+            _invest=[r for r in _clusters_auto if r["acao"] in ("🟢 INVESTIGAR AGORA","🚀 PRIORIDADE MÁXIMA")]
+            _monitor=[r for r in _clusters_auto if r["acao"]=="🟡 MONITORAR + INVESTIGAR"]
+            _risk=[r for r in _clusters_auto if r["acao"]=="🔴 REVISAR RISCO"]
+            c1,c2,c3,c4=st.columns(4)
+            c1.metric("Clusters de produto",len(_clusters_auto))
+            c2.metric("Investigar agora",len(_invest))
+            c3.metric("Monitorar",len(_monitor))
+            c4.metric("Revisar risco",len(_risk))
+
+            _names=[r["produto"] for r in _clusters_auto[:60]]
+            _sel=st.selectbox("Oportunidade para aprofundar",_names,key="auto_discovery_selected_cluster")
+            _chosen=next((r for r in _clusters_auto if r["produto"]==_sel),None)
+
+            if _chosen:
+                st.info(
+                    f"Ação: {_chosen['acao']} | Oportunidade hoje: {_chosen['score_oportunidade_hoje']} | "
+                    f"Aceleração: {_chosen['score_aceleracao']} | Anúncios similares: {_chosen['anuncios_similares']} | "
+                    f"Risco: {_chosen['risco']} | Por quê: {_chosen['por_que']}"
+                )
+                if st.button("➡️ Enviar oportunidade para investigação",key="auto_send_investigation_v15"):
+                    _p=_chosen["_product"]
+                    _row={
+                        "score_radar":_chosen["score_oportunidade_hoje"],
+                        "classificacao":_chosen["acao"],
+                        "oportunidade":_p.get("produto",""),
+                        "evidencia_shopee":"✅ Sim",
+                        "fontes_confirmando":1,
+                        "confirmacoes_secundarias":0,
+                        "fornecedores_sinal":0,
+                        "fontes":"Descoberta automática + cluster comercial + Shopee via Nexscope",
+                        "por_que_agora":_chosen["por_que"],
+                        "descricao":f"Preço R$ {_p.get('preco')} | Vendidos 30d {_p.get('vendidos_30d')} | Avaliação {_p.get('avaliacao')}",
+                        "url":_p.get("url",""),
+                    }
+                    _cur=st.session_state.get("radar_result") or {}
+                    _rows=_cur.get("rows",[]) if isinstance(_cur,dict) else []
+                    _rows=[x for x in _rows if x.get("oportunidade")!=_row["oportunidade"]]
+                    _rows.insert(0,_row)
+                    st.session_state["radar_result"]={
+                        "enabled":True,"message":"Oportunidade automática enviada para investigação.",
+                        "queries_used":0,"results_found":len(_rows),"rows":_rows,
+                        "suppliers":_cur.get("suppliers",[]) if isinstance(_cur,dict) else [],
+                    }
+                    st.session_state["nexscope_result"]={
+                        "ok":True,
+                        "products":[r["_product"] for r in _clusters_auto],
+                        "summary":{"total_size":len(_clusters_auto),"source_type":"auto_discovery_clusters"}
+                    }
+                    st.success("Oportunidade enviada para o Investigador com dados estruturados preservados.")
+
+        _rej=st.session_state.get("auto_discovery_rejected") or []
+        if _rej:
+            with st.expander(f"🧹 {len(_rej)} resultados fora da categoria foram filtrados"):
+                _show=[]
+                for x in _rej[:30]:
+                    p=x.get("product",{})
+                    _show.append({
+                        "categoria":x.get("category"),"termo":x.get("keyword"),
+                        "produto":p.get("produto"),"relevancia":p.get("relevancia_categoria"),
+                        "motivo":p.get("relevancia_motivo"),
+                    })
+                st.dataframe(pd.DataFrame(_show),use_container_width=True,hide_index=True)
 
     if _auto_errors:
         with st.expander(f"⚠️ {len(_auto_errors)} buscas tiveram erro"):
@@ -261,6 +291,11 @@ with tabs[0]:
 
     st.markdown("#### ✅ Status do Garimpeiro Automático")
     _summary_auto=st.session_state.get("auto_discovery_summary")
+    if not _summary_auto and st.session_state.get("auto_discovery_ranked"):
+        _summary_auto=discovery_run_summary(
+            st.session_state.get("auto_discovery_ranked") or [],
+            st.session_state.get("auto_discovery_errors") or []
+        )
     _run_at=st.session_state.get("auto_discovery_run_at")
     if _summary_auto:
         _s1,_s2,_s3,_s4,_s5=st.columns(5)
