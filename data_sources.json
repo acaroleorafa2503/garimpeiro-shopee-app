@@ -1,0 +1,19 @@
+[
+  {
+    "name": "Fornecedor CSV Exemplo",
+    "kind": "supplier",
+    "type": "csv",
+    "url": "https://exemplo.com/catalogo.csv",
+    "enabled": false
+  },
+  {
+    "name": "API autorizada Shopee/Parceiro",
+    "kind": "shopee",
+    "type": "json",
+    "url": "https://api.exemplo.com/produtos",
+    "token_env": "SHOPEE_PARTNER_TOKEN",
+    "token_header": "Authorization",
+    "token_prefix": "Bearer ",
+    "enabled": false
+  }
+]

@@ -1,0 +1,18 @@
+GARIMPEIRO V9 — COLETOR AUTOMÁTICO DE DADOS ESTRUTURADOS
+
+Novo:
+- data_sources.json: registro de fontes automáticas.
+- auto_collector.py: atualiza feeds CSV/JSON e APIs autorizadas.
+- Botão "Atualizar fontes" no painel.
+- Dados coletados alimentam o conector estruturado já existente.
+- Mantém origem, data da coleta e status da fonte.
+- NÃO faz scraping HTML da Shopee.
+
+Como ativar uma fonte:
+1. Abra data_sources.json.
+2. Troque enabled para true.
+3. Informe uma URL de CSV/JSON ou endpoint autorizado.
+4. Para API com token, salve o token como variável de ambiente/secret e informe token_env.
+
+Para Shopee:
+Use apenas exportações, feeds ou APIs autorizadas/permitidas.

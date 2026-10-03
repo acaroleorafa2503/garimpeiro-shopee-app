@@ -20,6 +20,7 @@ from final_evaluator import evaluate_product
 from price_intelligence import analyze_price_cost
 from product_identity import extract_identity
 from data_connectors import read_csv_file, combine_structured_data, SHOPEE_REQUIRED, SUPPLIER_REQUIRED
+from auto_collector import refresh_registry, merge_rows
 
 st.set_page_config(page_title="Garimpeiro OS V20",layout="wide")
 init_db()
@@ -261,6 +262,46 @@ else:
 
 
 st.divider()
+
+st.divider()
+st.subheader("⚙️ Coletor Automático de Fontes")
+st.caption("Atualiza feeds CSV/JSON e APIs autorizadas cadastradas em data_sources.json. Não faz scraping de páginas da Shopee.")
+
+if st.button("🔄 Atualizar fontes", key="refresh_sources"):
+    try:
+        refreshed=refresh_registry("data_sources.json")
+        st.session_state["auto_sources_refresh"]=refreshed
+        auto_shopee,prov_shopee=merge_rows(refreshed,"shopee")
+        auto_supplier,prov_supplier=merge_rows(refreshed,"supplier")
+        if auto_shopee:
+            st.session_state["structured_shopee_rows"]=auto_shopee
+        if auto_supplier:
+            st.session_state["structured_supplier_rows"]=auto_supplier
+        st.session_state["auto_sources_prov_shopee"]=prov_shopee
+        st.session_state["auto_sources_prov_supplier"]=prov_supplier
+    except Exception as exc:
+        st.error(f"Falha ao atualizar fontes: {exc}")
+
+refreshed=st.session_state.get("auto_sources_refresh",[])
+if refreshed:
+    status_rows=[]
+    for r in refreshed:
+        status_rows.append({
+            "fonte":r.get("name"),
+            "tipo":r.get("kind"),
+            "status":"OK" if r.get("ok") else "ERRO",
+            "registros":r.get("count",0),
+            "atualizado_em":r.get("fetched_at"),
+            "erro":r.get("error",""),
+        })
+    st.dataframe(pd.DataFrame(status_rows),use_container_width=True,hide_index=True)
+
+auto_count_sh=len(st.session_state.get("structured_shopee_rows",[]))
+auto_count_su=len(st.session_state.get("structured_supplier_rows",[]))
+m1,m2=st.columns(2)
+m1.metric("Registros Shopee estruturados",auto_count_sh)
+m2.metric("Registros de fornecedores",auto_count_su)
+
 st.subheader("🔌 Conector de Dados Shopee + Fornecedores")
 st.caption("Importe CSVs estruturados para alimentar preço, vendidos, avaliações, custo, MOQ e frete. O Garimpeiro cruza os dados com a identidade do produto e ignora itens incompatíveis.")
 
