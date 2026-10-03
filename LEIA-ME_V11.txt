@@ -1,0 +1,15 @@
+GARIMPEIRO V11 — FORNECEDOR 1688 VIA NEXSCOPE
+
+Novo:
+- Busca estruturada de produtos/fornecedores no 1688 usando a mesma NEXSCOPE_API_KEY.
+- Sugestão automática de termo comercial em chinês simplificado para categorias comuns.
+- Campo editável antes da chamada para evitar desperdício de créditos.
+- Preço de atacado, preço dropship, MOQ, vendas, empresa e link.
+- Compatibilidade entre termo chinês e título 1688 para reduzir falsos fornecedores.
+- Candidato 1688 pode ser salvo, mas NÃO entra como custo final em reais.
+- O sistema exige etapa posterior de custo posto no Brasil antes de liberar margem final.
+
+Importante:
+- A API 1688 exige keyWord em chinês simplificado.
+- A documentação atual informa 12 créditos por chamada.
+- Preço 1688 não inclui automaticamente câmbio, frete internacional, impostos ou despacho.

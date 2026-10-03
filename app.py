@@ -88,6 +88,7 @@ def _merge_nexscope_into_investigation(product_name, investigation):
 
 from deep_investigator import investigate_product
 from supplier_hunter import hunt_suppliers
+from nexscope_1688 import search_1688, suggest_chinese_keyword, SORT_LABELS as SORT_1688_LABELS
 from final_evaluator import evaluate_product
 from price_intelligence import analyze_price_cost
 from product_identity import extract_identity
@@ -384,6 +385,122 @@ else:
                 with st.expander("Erros de algumas consultas"):
                     st.write(result["errors"])
 
+
+st.divider()
+
+st.subheader("🌏 Fornecedores 1688 — Nexscope")
+st.caption("Sourcing estruturado no 1688. O preço abaixo é preço de atacado na moeda informada pela fonte — ainda NÃO é custo final em reais.")
+
+_candidate_1688 = None
+if "selected_product" in locals():
+    _candidate_1688 = selected_product
+elif "candidate_names" in locals() and candidate_names:
+    _candidate_1688 = candidate_names[0]
+
+if not _candidate_1688:
+    st.info("Envie primeiro um produto real da Shopee para investigação.")
+else:
+    st.write("**Produto de referência:**", _candidate_1688)
+
+    default_zh = suggest_chinese_keyword(_candidate_1688)
+    z1,z2,z3 = st.columns([3,1,1])
+    keyword_zh = z1.text_input(
+        "Termo para buscar no 1688 (chinês simplificado)",
+        value=default_zh,
+        key="supplier_1688_keyword",
+        help="O sistema cria uma sugestão comercial. Você pode ajustar antes de consumir créditos."
+    )
+    page_size_1688 = z2.selectbox("Resultados 1688",[10,20,30,50],index=1,key="supplier_1688_size")
+    search_type_1688 = z3.selectbox("Correspondência",["Ampla","Exata"],index=0,key="supplier_1688_match")
+
+    z4,z5,z6 = st.columns([2,1,1])
+    sort_label_1688 = z4.selectbox("Ordenar por",list(SORT_1688_LABELS.keys()),index=0,key="supplier_1688_sort")
+    price_min_1688 = z5.number_input("Preço mín. atacado",min_value=0.0,value=0.0,step=1.0,key="supplier_1688_pmin")
+    price_max_1688 = z6.number_input("Preço máx. atacado",min_value=0.0,value=0.0,step=1.0,key="supplier_1688_pmax")
+
+    st.caption("Cada busca 1688 consome créditos Nexscope. A documentação atual informa 12 créditos por chamada.")
+
+    if st.button("🌏 Buscar fornecedores reais no 1688", key="run_1688"):
+        if not keyword_zh.strip():
+            st.warning("O termo 1688 está vazio.")
+        else:
+            with st.spinner("Consultando produtos e fornecedores no 1688..."):
+                r1688 = search_1688(
+                    keyword_zh=keyword_zh,
+                    page_index=1,
+                    page_size=int(page_size_1688),
+                    search_type=1 if search_type_1688=="Ampla" else 3,
+                    sort_field=SORT_1688_LABELS[sort_label_1688],
+                    sort_type="asc" if sort_label_1688 in ("Menor preço","Menor preço dropshipping") else "desc",
+                    begin_price=price_min_1688 if price_min_1688>0 else None,
+                    end_price=price_max_1688 if price_max_1688>0 else None,
+                    cycle="30",
+                )
+                st.session_state["supplier_1688_result"] = r1688
+                st.session_state["supplier_1688_product"] = _candidate_1688
+
+    r1688 = st.session_state.get("supplier_1688_result")
+    if r1688 and st.session_state.get("supplier_1688_product")==_candidate_1688:
+        if not r1688.get("ok"):
+            st.error("Falha na busca 1688: "+str(r1688.get("error","Erro desconhecido")))
+        else:
+            sm = r1688.get("summary",{})
+            x1,x2,x3,x4,x5 = st.columns(5)
+            x1.metric("Resultados", sm.get("returned",0))
+            x2.metric("Compatíveis", sm.get("compatible",0))
+            x3.metric("Possíveis", sm.get("possible",0))
+            med = sm.get("median_wholesale_cny")
+            low = sm.get("min_wholesale_cny")
+            x4.metric("Menor atacado", f"{low:.2f} CNY" if isinstance(low,(int,float)) else "Sem dado")
+            x5.metric("Mediana atacado", f"{med:.2f} CNY" if isinstance(med,(int,float)) else "Sem dado")
+
+            rows1688 = r1688.get("products",[])
+            if rows1688:
+                df1688 = pd.DataFrame(rows1688)
+                cols1688 = [
+                    "status","compatibilidade","titulo_1688","preco_atacado","preco_dropship",
+                    "faixa_preco","moq","unidade","moeda","pedidos","unidades_vendidas",
+                    "empresa","prazo_entrega","link"
+                ]
+                for c in cols1688:
+                    if c not in df1688.columns:
+                        df1688[c] = ""
+                st.dataframe(
+                    df1688[cols1688],
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={"link":st.column_config.LinkColumn("Abrir no 1688")}
+                )
+
+                best_names = [
+                    f"{p.get('empresa') or 'Fornecedor'} | {p.get('titulo_1688','')[:70]}"
+                    for p in rows1688 if p.get("compatibilidade",0) >= 45
+                ]
+                if best_names:
+                    chosen_label = st.selectbox("Fornecedor 1688 para pré-selecionar", best_names, key="chosen_1688")
+                    if st.button("✅ Guardar como candidato de fornecedor", key="save_1688_candidate"):
+                        for p in rows1688:
+                            label = f"{p.get('empresa') or 'Fornecedor'} | {p.get('titulo_1688','')[:70]}"
+                            if label == chosen_label:
+                                st.session_state["supplier_1688_candidate"] = {
+                                    "produto_shopee": _candidate_1688,
+                                    **p
+                                }
+                                st.success("Fornecedor 1688 guardado como candidato. Ainda falta calcular custo posto no Brasil.")
+                                break
+
+            saved1688 = st.session_state.get("supplier_1688_candidate")
+            if saved1688 and saved1688.get("produto_shopee")==_candidate_1688:
+                st.info(
+                    "Candidato salvo: "
+                    + str(saved1688.get("empresa") or "Fornecedor")
+                    + " | Atacado: "
+                    + (f"{saved1688.get('preco_atacado'):.2f} {saved1688.get('moeda','CNY')}" if isinstance(saved1688.get("preco_atacado"),(int,float)) else "Sem preço")
+                    + " | MOQ: "
+                    + str(saved1688.get("moq") or "Sem dado")
+                )
+
+            st.warning("Não use o preço 1688 diretamente como custo em R$. Ainda faltam câmbio, frete internacional, impostos, despacho e possíveis taxas.")
 
 st.divider()
 st.subheader("🏭 Caçador de Fornecedores e Preços")
