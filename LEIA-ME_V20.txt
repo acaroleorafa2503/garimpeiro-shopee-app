@@ -1,0 +1,37 @@
+GARIMPEIRO V20 — CÉREBRO DE ANÚNCIOS
+
+Base oficial: V19.1.
+
+Rota mantida:
+1. Descoberta
+2. Oportunidade Hoje
+3. Sazonalidade
+4. Aceleração
+5. Concorrentes Vulneráveis
+6. Investigação Aprofundada
+7. Cérebro de Anúncios
+
+Novo na V20:
+- Só recebe produto aprovado pela Investigação.
+- Não faz nova chamada Nexscope.
+- Sugere preço de entrada para TESTE, sem fingir margem.
+- Define oferta e estratégia de kit.
+- Usa brechas de concorrentes como direção de posicionamento.
+- Gera título-base.
+- Gera plano de imagens.
+- Define orçamento operacional inicial de teste.
+- Define regras de corte.
+- Define regras de escala.
+- Mantém bloqueios se confiança, risco ou demanda não forem suficientes.
+- Lista claramente o financeiro ainda pendente:
+  custo posto, taxas Shopee, margem alvo e CAC/ROAS de equilíbrio.
+
+IMPORTANTE:
+O orçamento e preço sugeridos são referências de TESTE COMERCIAL.
+Nenhuma decisão financeira definitiva é liberada sem custo real e margem.
+
+Próximos módulos da rota:
+- Previsão
+- Alertas
+- Auditoria
+- Resumo Executivo

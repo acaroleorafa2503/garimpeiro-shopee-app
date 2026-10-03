@@ -1,3 +1,4 @@
+from ads_brain_engine import build_ads_brain
 from investigation_engine import investigate_existing_opportunity
 from persistence_store import configured as persistence_configured, healthcheck as persistence_healthcheck, save_products as persist_products, load_latest_products as load_persisted_products
 from competitor_engine import analyze_market, strategy_from_market
@@ -126,7 +127,7 @@ if "persistent_bootstrap_done" not in st.session_state:
         except Exception as _persist_err:
             st.session_state["persistence_error"]=str(_persist_err)
 
-st.title("🚀 Garimpeiro Shopee — Fluxo Oficial V19")
+st.title("🚀 Garimpeiro Shopee — V20 Cérebro de Anúncios")
 
 with st.expander("🧪 Diagnóstico da versão"):
     _sc=run_selfcheck()
@@ -505,7 +506,7 @@ with tabs[0]:
     st.markdown("### 🧭 Fluxo Oficial do Garimpeiro")
     _has_products=bool(st.session_state.get("auto_discovery_products"))
     _has_clusters=bool(st.session_state.get("auto_discovery_clusters"))
-    _ads_ready=bool(st.session_state.get("ads_brain_candidate"))
+    _ads_ready=bool(st.session_state.get("ads_brain_candidate")) or bool(st.session_state.get("ads_brain_ready"))
     _f1,_f2,_f3,_f4,_f5,_f6,_f7=st.columns(7)
     if _has_products:
         _f1.success("1. Descoberta")
@@ -647,18 +648,77 @@ with tabs[0]:
             if st.button("🧠 Preparar para o Cérebro de Anúncios",type="primary",key="send_to_ads_brain"):
                 st.session_state["ads_brain_candidate"]=_inv
                 st.success("Produto aprovado e separado para a próxima etapa: Cérebro de Anúncios.")
-    st.divider()
-    st.subheader("🧠 Cérebro de Anúncios")
-    _ads_candidate=st.session_state.get("ads_brain_candidate")
-    if not _ads_candidate:
-        st.info("Aguardando um produto ser aprovado na Investigação Aprofundada. Esta é a próxima etapa oficial.")
+
+st.divider()
+st.subheader("🧠 Cérebro de Anúncios")
+st.caption("Transforma somente produtos aprovados pela Investigação em plano de teste. Não usa nova chamada Nexscope.")
+
+_ads_candidate=st.session_state.get("ads_brain_candidate")
+_ads_market=st.session_state.get("auto_discovery_products") or []
+
+if not _ads_candidate:
+    st.info("Aguardando um produto ser aprovado na Investigação Aprofundada.")
+else:
+    _ads_plan=build_ads_brain(_ads_candidate,_ads_market)
+    st.session_state["ads_brain_plan"]=_ads_plan
+
+    if _ads_plan["status_execucao"].startswith("🟢"):
+        st.success(_ads_plan["status_execucao"])
     else:
-        st.success(
-            f"Produto preparado: {_ads_candidate.get('produto','')} | "
-            f"Oportunidade {_ads_candidate.get('score_oportunidade_hoje',0)} | "
-            f"Confiança {_ads_candidate.get('confianca','—')}"
-        )
-        st.caption("A lógica completa de preço, oferta, criativo, orçamento, teste, corte e escala entra na próxima versão.")
+        st.warning(_ads_plan["status_execucao"])
+
+    _a1,_a2,_a3,_a4=st.columns(4)
+    _a1.metric("Preço atual",f"R$ {_ads_plan['preco_atual']:.2f}" if _ads_plan["preco_atual"] else "—")
+    _a2.metric("Preço entrada",f"R$ {_ads_plan['preco_entrada_sugerido']:.2f}" if _ads_plan["preco_entrada_sugerido"] else "—")
+    _a3.metric("Orçamento teste/dia",f"R$ {_ads_plan['orcamento_diario_teste']:.2f}")
+    _a4.metric("Teste inicial",f"{_ads_plan['dias_teste']} dias")
+
+    st.markdown("#### 💵 Estratégia de preço e oferta")
+    st.write("**Oferta:**",_ads_plan["tipo_oferta"])
+    st.write("**Kit:**",_ads_plan["estrategia_kit"])
+    if _ads_plan["preco_mediano_mercado"] > 0:
+        st.write("**Preço mediano da amostra:**",f"R$ {_ads_plan['preco_mediano_mercado']:.2f}")
+    st.caption("Preço sugerido é ponto de teste comercial, não decisão final de margem.")
+
+    st.markdown("#### 🎯 Posicionamento e diferenciação")
+    for _d in _ads_plan["diferenciais"]:
+        st.write("•",_d)
+
+    st.markdown("#### 🏷️ Título sugerido")
+    st.code(_ads_plan["titulo_sugerido"],language=None)
+
+    st.markdown("#### 🖼️ Plano de imagens")
+    for _img in _ads_plan["plano_imagem"]:
+        st.write("•",_img)
+
+    st.markdown("#### 📣 Plano inicial de Ads")
+    st.write(_ads_plan["regra_teste"])
+    st.write(
+        f"**Orçamento total aproximado do teste:** R$ {_ads_plan['orcamento_total_teste']:.2f}"
+    )
+    st.caption("Esse orçamento é uma referência de teste operacional. Não é previsão de lucro ou vendas.")
+
+    _ac1,_ac2=st.columns(2)
+    with _ac1:
+        st.markdown("#### ✂️ Regras de corte")
+        for _r in _ads_plan["regras_corte"]:
+            st.write("•",_r)
+    with _ac2:
+        st.markdown("#### 📈 Regras de escala")
+        for _r in _ads_plan["regras_escala"]:
+            st.write("•",_r)
+
+    if _ads_plan["bloqueios"]:
+        st.markdown("#### 🚧 Bloqueios antes de escalar")
+        for _b in _ads_plan["bloqueios"]:
+            st.write("•",_b)
+
+    st.markdown("#### 🔒 Financeiro ainda pendente")
+    st.caption("O Garimpeiro não vai fingir margem sem custo real.")
+    for _f in _ads_plan["financeiro_pendente"]:
+        st.write("•",_f)
+
+    st.session_state["ads_brain_ready"]=True
     st.divider()
     with st.expander("⚙️ Ferramentas técnicas / módulos antigos", expanded=False):
         st.caption(
