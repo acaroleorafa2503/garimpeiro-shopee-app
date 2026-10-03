@@ -2,6 +2,7 @@ import re
 from statistics import median
 from urllib.parse import urlparse
 from collectors.brave_search import BraveSearchCollector
+from product_identity import extract_identity, compatibility_score, is_compatible
 
 SHOPEE_DOMAINS=("shopee.com.br",)
 SECONDARY_MARKETS=("mercadolivre.com.br","amazon.com.br","magazineluiza.com.br","americanas.com.br")
@@ -154,6 +155,10 @@ def analyze_price_cost(product_name,max_queries=8,results_per_query=8):
             if not prices:
                 continue
 
+            compat = compatibility_score(product_name, title, desc)
+            if compat < 60:
+                continue
+
             # Avoid silently converting a kit/lote price into unit cost.
             unit_prices=[]
             if qty and qty>1 and any(x in _norm(text) for x in ("caixa com","pacote com","lote","por unidade","cada")):
@@ -165,6 +170,7 @@ def analyze_price_cost(product_name,max_queries=8,results_per_query=8):
             rows.append({
                 "tipo":stype,
                 "titulo":title[:180],
+                "compatibilidade":compat,
                 "fonte":domain,
                 "precos_brutos":", ".join(f"R$ {p:.2f}" for p in prices[:5]),
                 "_precos_numericos":prices,

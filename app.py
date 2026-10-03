@@ -18,6 +18,7 @@ from deep_investigator import investigate_product
 from supplier_hunter import hunt_suppliers
 from final_evaluator import evaluate_product
 from price_intelligence import analyze_price_cost
+from product_identity import extract_identity
 
 st.set_page_config(page_title="Garimpeiro OS V20",layout="wide")
 init_db()
@@ -241,7 +242,7 @@ else:
             rows_h=hunt.get("rows",[])
             if rows_h:
                 hdf=pd.DataFrame(rows_h)
-                cols_h=["status_fornecedor","fornecedor","confianca","evidencias","acao_sugerida","fonte","score_fornecedor","precos_encontrados","moq_estimado","descricao","url"]
+                cols_h=["status_fornecedor","fornecedor","compatibilidade_produto","confianca","evidencias","acao_sugerida","fonte","score_fornecedor","precos_encontrados","moq_estimado","descricao","url"]
                 for c in cols_h:
                     if c not in hdf.columns:
                         hdf[c]=""
@@ -272,6 +273,11 @@ if not price_candidates:
 else:
     pc1,pc2=st.columns([3,1])
     price_product=pc1.selectbox("Produto para analisar preço/custo",price_candidates,key="price_product")
+    identity = extract_identity(price_product)
+    if identity.get("generic"):
+        st.warning("O nome do produto ainda está genérico. O sistema exigirá correspondência mais específica antes de aceitar preço ou custo.")
+    else:
+        st.caption("Identidade usada para validar preços: " + identity.get("canonical",""))
     price_queries=pc2.selectbox("Buscas de preço/custo",[4,6,8,10],index=1,key="price_queries")
     st.caption(f"Esta etapa consumirá no máximo {price_queries} solicitações adicionais da Brave Search API.")
 
@@ -303,7 +309,7 @@ else:
             price_rows=pr.get("rows",[])
             if price_rows:
                 pdf=pd.DataFrame(price_rows)
-                cols=["tipo","titulo","fonte","precos_brutos","quantidade_lote","preco_unitario_derivado","confianca","descricao","url"]
+                cols=["tipo","titulo","compatibilidade","fonte","precos_brutos","quantidade_lote","preco_unitario_derivado","confianca","descricao","url"]
                 for c in cols:
                     if c not in pdf.columns:
                         pdf[c]=""

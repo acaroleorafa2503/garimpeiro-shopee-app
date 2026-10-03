@@ -2,6 +2,7 @@ import re
 from statistics import median
 from urllib.parse import urlparse
 from collectors.brave_search import BraveSearchCollector
+from product_identity import compatibility_score
 
 SUPPLIER_WORDS = (
     "atacado","atacadista","distribuidor","distribuidora","fabricante","fábrica","fabrica",
@@ -241,9 +242,10 @@ def hunt_suppliers(product_name,max_queries=6,results_per_query=8):
             desc=r.get("description","") or ""
             domain=_domain(url,r.get("source_domain",""))
             likelihood=_supplier_likelihood(title,desc,domain)
+            compat=compatibility_score(product_name,title,desc)
 
-            # Broader threshold than V6.1, but status makes confidence explicit.
-            if likelihood < 2:
+            # Supplier must be commercially plausible and refer to a compatible product.
+            if likelihood < 2 or compat < 55:
                 continue
 
             prices=_extract_brl(f"{title} {desc}")
@@ -283,6 +285,7 @@ def hunt_suppliers(product_name,max_queries=6,results_per_query=8):
 
             rows.append({
                 "fornecedor":title[:180],
+                "compatibilidade_produto":compat,
                 "status_fornecedor":status,
                 "confianca":confidence,
                 "evidencias":", ".join(evidence) if evidence else "sinais comerciais limitados",

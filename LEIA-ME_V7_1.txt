@@ -1,0 +1,17 @@
+GARIMPEIRO V7.1 — IDENTIDADE DO PRODUTO
+
+Principais regras:
+- Não mistura produtos apenas porque pertencem à mesma categoria.
+- Exige compatibilidade entre o produto candidato, o preço e o fornecedor.
+- Atributos como retrátil, lanterna, personalizada, nome/telefone, antipulgas etc. fazem parte da identidade.
+- Preço/custo de item incompatível é descartado.
+- Produto genérico recebe alerta e não deve alimentar decisão financeira automaticamente.
+
+Arquivos:
+- app.py
+- opportunity_radar.py
+- deep_investigator.py
+- supplier_hunter.py
+- price_intelligence.py
+- final_evaluator.py
+- product_identity.py
