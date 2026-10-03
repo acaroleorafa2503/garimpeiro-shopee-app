@@ -14,6 +14,7 @@ from executor_assistido import generate_drafts
 from scheduler import run_due
 from backup_audit import backup,integrity_check
 from opportunity_radar import run_opportunity_radar, CATEGORY_LABELS, MODE_HINTS
+from deep_investigator import investigate_product
 
 st.set_page_config(page_title="Garimpeiro OS V20",layout="wide")
 init_db()
@@ -107,6 +108,62 @@ with tabs[0]:
                     with st.expander(f"Fornecedores encontrados ({len(supplier_rows)})"):
                         st.dataframe(pd.DataFrame(supplier_rows),use_container_width=True,hide_index=True,
                             column_config={"url":st.column_config.LinkColumn("Abrir fornecedor")})
+
+st.divider()
+st.subheader("🧪 Investigador Automático de Produto")
+st.caption("Selecione um candidato do Radar. A investigação usa novas buscas da API para reunir evidência Shopee, fornecedores, preços públicos e confirmações externas.")
+
+candidate_names=[x.get("oportunidade","") for x in rows if x.get("oportunidade")]
+candidate_names=list(dict.fromkeys(candidate_names))
+if candidate_names:
+    i1,i2=st.columns([3,1])
+    selected_product=i1.selectbox("Produto para investigar",candidate_names,key="investigator_product")
+    inv_queries=i2.selectbox("Buscas da investigação",[3,4,5,6],index=1,key="investigator_queries")
+    st.caption(f"A investigação consumirá no máximo {inv_queries} solicitações adicionais da Brave Search API.")
+
+    if st.button("🔬 Investigar produto",key="run_investigator"):
+        with st.spinner(f"Investigando {selected_product}..."):
+            inv=investigate_product(selected_product,inv_queries,8)
+            st.session_state["investigation_result"]=inv
+
+    inv=st.session_state.get("investigation_result")
+    if inv and inv.get("product")==selected_product:
+        if not inv.get("enabled"):
+            st.error(inv.get("message"))
+        else:
+            st.markdown(f"### {inv.get('decisao_preliminar')}")
+            j1,j2,j3,j4,j5=st.columns(5)
+            j1.metric("Score investigação",inv.get("score_investigacao",0))
+            j2.metric("Evidências Shopee",inv.get("shopee_evidencias",0))
+            j3.metric("Fornecedores",inv.get("fornecedores_encontrados",0))
+            j4.metric("Confirmações externas",inv.get("confirmacoes_secundarias",0))
+            j5.metric("Confiança",inv.get("confianca","Baixa"))
+
+            ps=inv.get("preco_shopee",{})
+            pf=inv.get("preco_fornecedor",{})
+            p1,p2,p3=st.columns(3)
+            p1.metric("Preço Shopee mediano", f"R$ {ps['median']:.2f}" if ps.get("median") else "Sem dado")
+            p2.metric("Menor preço fornecedor", f"R$ {pf['min']:.2f}" if pf.get("min") else "Sem dado")
+            spread=inv.get("spread_bruto_pct")
+            p3.metric("Spread bruto preliminar", f"{spread:.1f}%" if spread is not None else "Sem dado")
+
+            if inv.get("motivos"):
+                st.write("**Sinais encontrados:** " + " • ".join(inv["motivos"]))
+            st.warning(inv.get("warning",""))
+
+            evidence=inv.get("rows",[])
+            if evidence:
+                edf=pd.DataFrame(evidence)
+                cols_show=["tipo","titulo","fonte","precos_encontrados","descricao","url"]
+                for col in cols_show:
+                    if col not in edf.columns:
+                        edf[col]=""
+                st.dataframe(edf[cols_show],use_container_width=True,hide_index=True,
+                    column_config={"url":st.column_config.LinkColumn("Abrir fonte")})
+
+            if inv.get("errors"):
+                with st.expander("Erros de algumas consultas da investigação"):
+                    st.write(inv["errors"])
             else:
                 st.warning("Nenhum resultado foi retornado nesta rodada.")
             if result.get("errors"):
