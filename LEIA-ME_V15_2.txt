@@ -1,0 +1,9 @@
+GARIMPEIRO V15.2 — CORREÇÃO NAMEERROR
+
+Correção:
+- _clusters_auto agora é inicializado sempre antes de qualquer uso.
+- Reconstrói clusters localmente a partir dos produtos já coletados quando possível.
+- Mantém reaproveitamento da coleta sem nova chamada Nexscope.
+- Todos os arquivos Python foram compilados com sucesso antes do empacotamento.
+
+Não altera Secrets.

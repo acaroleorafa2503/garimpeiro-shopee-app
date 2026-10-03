@@ -198,6 +198,23 @@ with tabs[0]:
 
     _auto_ranked=st.session_state.get("auto_discovery_ranked") or []
     _auto_errors=st.session_state.get("auto_discovery_errors") or []
+    _clusters_auto=st.session_state.get("auto_discovery_clusters") or []
+
+    # Rebuild clusters locally from already-collected products/ranked rows when possible.
+    if not _clusters_auto:
+        _existing_products=st.session_state.get("auto_discovery_products") or []
+        if not _existing_products and _auto_ranked:
+            _existing_products=[
+                r.get("_product")
+                for r in _auto_ranked
+                if isinstance(r,dict) and r.get("_product")
+            ]
+        if _existing_products:
+            try:
+                _clusters_auto=build_commercial_clusters(_existing_products)
+                st.session_state["auto_discovery_clusters"]=_clusters_auto
+            except Exception as _cluster_err:
+                st.warning(f"Não foi possível reconstruir o ranking local: {_cluster_err}")
 
     if _auto_ranked:
         _m1,_m2,_m3,_m4=st.columns(4)
@@ -208,20 +225,10 @@ with tabs[0]:
 
 
         st.markdown("#### 🏆 Oportunidades comerciais encontradas")
+        if "_clusters_auto" not in locals():
+            _clusters_auto=st.session_state.get("auto_discovery_clusters") or []
         st.caption("♻️ Se já existirem produtos coletados na sessão, o ranking é reconstruído localmente sem consumir novos créditos Nexscope.")
-        _clusters_auto=st.session_state.get("auto_discovery_clusters") or []
-    if not _clusters_auto:
-        _existing_products=st.session_state.get("auto_discovery_products") or []
-        if not _existing_products:
-            _old_ranked=st.session_state.get("auto_discovery_ranked") or []
-            _existing_products=[r.get("_product") for r in _old_ranked if isinstance(r,dict) and r.get("_product")]
-        if _existing_products:
-            try:
-                _clusters_auto=build_commercial_clusters(_existing_products)
-                st.session_state["auto_discovery_clusters"]=_clusters_auto
-            except Exception as _cluster_err:
-                st.warning(f"Não foi possível reconstruir o ranking local: {_cluster_err}")
-
+    
         if _clusters_auto:
             _dfc=pd.DataFrame(_clusters_auto)
             _cols=[
