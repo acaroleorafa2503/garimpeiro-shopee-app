@@ -1,0 +1,9 @@
+GARIMPEIRO V13.1 — RADAR DE ESCALA REAL
+
+- Usa variação de vendas 30d entre snapshots.
+- Usa crescimento de avaliações e favoritos como confirmação.
+- Não depende de vendidos_historicos quando esse campo vem zerado.
+- Volume alto sozinho não é tratado como aceleração.
+- Sem mudança positiva, o produto fica como estável/cedo demais.
+- O painel mostra Δ vendas 30d.
+- Para tendência real, compare coletas separadas por algumas horas ou dias.

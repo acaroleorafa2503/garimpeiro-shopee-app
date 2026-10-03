@@ -397,6 +397,7 @@ st.divider()
 
 st.subheader("🚀 V13 — Radar de Escala")
 st.caption("Separa produto que já vende muito de produto que está realmente acelerando.")
+st.caption("Para tendência real, compare coletas separadas por algumas horas ou dias; duas buscas seguidas não significam aceleração.")
 
 _ns_v13 = st.session_state.get("nexscope_result") or {}
 _v13_products = _ns_v13.get("products",[]) if isinstance(_ns_v13,dict) else []
@@ -418,7 +419,7 @@ else:
         v1.metric("Score de escala",_sig.get("score",0))
         v2.metric("Momento",_sig.get("status","—"))
         v3.metric("Snapshots",_sig.get("history_points",0))
-        v4.metric("Δ vendas históricas",int(_sig.get("hist_delta",0)))
+        v4.metric("Δ vendas 30d",int(_sig.get("sold30_delta",0)))
         v5.metric("Δ avaliações",int(_sig.get("ratings_delta",0)))
 
         st.write("**Leitura:**",_sig.get("reason","—"))

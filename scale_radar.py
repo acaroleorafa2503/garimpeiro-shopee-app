@@ -87,72 +87,106 @@ def _delta(new, old, key):
     except Exception:
         return 0.0
 
+
 def scale_signal(product):
-    hist = get_history(product, 12)
+    hist = get_history(product, 20)
     if len(hist) < 2:
         return {
-            "status":"🆕 Sem histórico suficiente","score":0,"history_points":len(hist),
-            "hist_delta":0,"recent_delta":0,"ratings_delta":0,"favorites_delta":0,
-            "price_change_pct":0,"reason":"Precisamos de pelo menos 2 coletas do mesmo produto em momentos diferentes."
+            "status":"🆕 Sem histórico suficiente",
+            "score":0,
+            "history_points":len(hist),
+            "sold30_delta":0,
+            "sales_velocity":0,
+            "ratings_delta":0,
+            "favorites_delta":0,
+            "price_change_pct":0,
+            "reason":"Precisamos de pelo menos 2 coletas em momentos diferentes."
         }
 
-    newest, oldest = hist[0], hist[-1]
+    newest = hist[0]
+    oldest = hist[-1]
     prev = hist[1]
-    hist_delta = max(0, _delta(newest, oldest, "vendidos_historicos"))
-    recent_delta = max(0, _delta(newest, prev, "vendidos_historicos"))
-    ratings_delta = max(0, _delta(newest, oldest, "qtd_avaliacoes"))
-    favorites_delta = max(0, _delta(newest, oldest, "favoritos"))
+
+    sold30_delta = _delta(newest, oldest, "vendidos_30d")
+    recent_sold30_delta = _delta(newest, prev, "vendidos_30d")
+    ratings_delta = _delta(newest, oldest, "qtd_avaliacoes")
+    favorites_delta = _delta(newest, oldest, "favoritos")
 
     score = 20
     reasons = []
-    if hist_delta >= 1000:
-        score += 30; reasons.append("histórico cresceu muito")
-    elif hist_delta >= 300:
-        score += 22; reasons.append("histórico cresceu forte")
-    elif hist_delta >= 100:
-        score += 14; reasons.append("histórico cresceu")
-    elif hist_delta > 0:
-        score += 6; reasons.append("histórico avançando")
 
-    if recent_delta >= 300:
-        score += 20; reasons.append("velocidade recente alta")
-    elif recent_delta >= 100:
-        score += 14; reasons.append("boa velocidade recente")
-    elif recent_delta > 0:
-        score += 6; reasons.append("movimento recente positivo")
+    if sold30_delta >= 1000:
+        score += 32; reasons.append("vendas 30d subiram muito")
+    elif sold30_delta >= 300:
+        score += 24; reasons.append("vendas 30d subiram forte")
+    elif sold30_delta >= 100:
+        score += 16; reasons.append("vendas 30d cresceram")
+    elif sold30_delta > 0:
+        score += 8; reasons.append("vendas 30d avançando")
+    elif sold30_delta < 0:
+        score -= 8; reasons.append("vendas 30d recuando")
+
+    if recent_sold30_delta >= 300:
+        score += 18; reasons.append("velocidade recente alta")
+    elif recent_sold30_delta >= 100:
+        score += 12; reasons.append("boa velocidade recente")
+    elif recent_sold30_delta > 0:
+        score += 5; reasons.append("movimento recente positivo")
 
     if ratings_delta >= 100:
-        score += 12; reasons.append("avaliações crescendo rápido")
+        score += 14; reasons.append("avaliações crescendo muito")
     elif ratings_delta >= 20:
-        score += 7; reasons.append("avaliações crescendo")
+        score += 9; reasons.append("avaliações crescendo")
+    elif ratings_delta > 0:
+        score += 4; reasons.append("novas avaliações")
 
     if favorites_delta >= 100:
         score += 8; reasons.append("favoritos crescendo")
     elif favorites_delta > 0:
         score += 3; reasons.append("favoritos subindo")
 
+    current_sales = int(newest.get("vendidos_30d") or 0)
+    if current_sales >= 10000:
+        score += 8; reasons.append("volume atual muito alto")
+    elif current_sales >= 3000:
+        score += 5; reasons.append("volume atual alto")
+    elif current_sales >= 1000:
+        score += 3; reasons.append("bom volume atual")
+
     p0 = float(oldest.get("preco") or 0)
     p1 = float(newest.get("preco") or 0)
     price_change_pct = ((p1-p0)/p0*100) if p0 > 0 and p1 > 0 else 0
+
     if price_change_pct <= -15:
-        score -= 6; reasons.append("preço caiu muito")
+        score -= 6; reasons.append("crescimento pode estar vindo de forte corte de preço")
+    elif price_change_pct >= 10 and sold30_delta > 0:
+        score += 4; reasons.append("crescendo mesmo com preço maior")
 
     score = max(0, min(100, score))
-    if score >= 85:
+
+    has_growth = sold30_delta > 0 or ratings_delta > 0 or favorites_delta > 0
+    if not has_growth:
+        status = "🟣 Estável / cedo demais"
+        score = min(score, 49)
+    elif score >= 85:
         status = "🚀 Escalando forte"
     elif score >= 70:
         status = "🟢 Acelerando"
     elif score >= 50:
         status = "🟡 Crescendo"
     else:
-        status = "⚪ Estável / cedo demais"
+        status = "⚪ Movimento fraco"
 
     return {
-        "status":status,"score":score,"history_points":len(hist),
-        "hist_delta":hist_delta,"recent_delta":recent_delta,
-        "ratings_delta":ratings_delta,"favorites_delta":favorites_delta,
+        "status":status,
+        "score":score,
+        "history_points":len(hist),
+        "sold30_delta":sold30_delta,
+        "sales_velocity":recent_sold30_delta,
+        "ratings_delta":ratings_delta,
+        "favorites_delta":favorites_delta,
         "price_change_pct":round(price_change_pct,2),
-        "reason":", ".join(reasons) if reasons else "Sem sinal forte ainda."
+        "reason":", ".join(reasons) if reasons else "Sem mudança mensurável ainda."
     }
 
 def competitor_vulnerability(products):
