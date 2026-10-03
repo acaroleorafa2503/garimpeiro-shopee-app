@@ -1,0 +1,34 @@
+GARIMPEIRO V15.3 — SAZONALIDADE INTEGRADA
+
+A arquitetura-mestra permanece fixa:
+Descoberta automática
+→ Oportunidade Hoje
+→ Sazonalidade
+→ Aceleração
+→ Concorrentes vulneráveis
+→ Investigação
+→ Estratégia de anúncio
+→ Previsão
+→ Alertas
+→ Auditoria
+→ Resumo executivo
+→ Fornecedor/custo/margem após aprovação.
+
+Sazonalidade integrada:
+- Dia das Crianças
+- Halloween
+- Black Friday
+- Natal
+- Volta às Aulas
+- Verão
+
+Classificação:
+🔴 Atrasado
+🟡 Atenção
+🟢 Momento ideal
+🔵 Antecipação
+🟢 Perene
+
+O ranking mostra:
+evento, janela, dias até o pico, data do pico e risco de encalhe.
+O bônus sazonal é moderado e nunca substitui demanda/concorrência.

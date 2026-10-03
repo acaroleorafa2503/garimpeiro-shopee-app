@@ -1,3 +1,4 @@
+from seasonality_engine import apply_seasonality_to_rows, detect_seasonality
 from selfcheck import run_selfcheck
 from auto_discovery import CATEGORY_SEEDS, discovery_plan, merge_discovery_results, rank_discovered, estimated_calls, discovery_run_summary, top_candidates, filter_by_category_relevance, build_commercial_clusters
 from scale_radar import save_snapshot, scale_signal, competitor_vulnerability, forecast_from_signal, build_alerts
@@ -211,10 +212,14 @@ with tabs[0]:
             ]
         if _existing_products:
             try:
-                _clusters_auto=build_commercial_clusters(_existing_products)
+                _clusters_auto=apply_seasonality_to_rows(build_commercial_clusters(_existing_products))
                 st.session_state["auto_discovery_clusters"]=_clusters_auto
             except Exception as _cluster_err:
                 st.warning(f"Não foi possível reconstruir o ranking local: {_cluster_err}")
+
+    if _clusters_auto and "evento_sazonal" not in _clusters_auto[0]:
+        _clusters_auto=apply_seasonality_to_rows(_clusters_auto)
+        st.session_state["auto_discovery_clusters"]=_clusters_auto
 
     if _auto_ranked:
         _m1,_m2,_m3,_m4=st.columns(4)
@@ -310,6 +315,9 @@ with tabs[0]:
 
     st.markdown("#### ✅ Status do Garimpeiro Automático")
     _status_clusters=st.session_state.get("auto_discovery_clusters") or []
+    if _status_clusters and "evento_sazonal" not in _status_clusters[0]:
+        _status_clusters=apply_seasonality_to_rows(_status_clusters)
+        st.session_state["auto_discovery_clusters"]=_status_clusters
     if not _status_clusters:
         _status_products=st.session_state.get("auto_discovery_products") or []
         if _status_products:
@@ -336,6 +344,10 @@ with tabs[0]:
         if _run_at:
             st.caption(f"Última varredura registrada: {_run_at}")
         st.caption("Ranking comercial reconstruído localmente quando possível — sem nova chamada Nexscope.")
+        _active_season=[r for r in _status_clusters if r.get("janela_sazonal") in ("🟢 Momento ideal","🟡 Atenção")]
+        if _active_season:
+            st.info(f"📅 Janela sazonal ativa: {len(_active_season)} oportunidades em Momento ideal ou Atenção.")
+
     elif _summary_auto:
         _s1,_s2,_s3,_s4,_s5=st.columns(5)
         _s1.metric("Produtos únicos",_summary_auto.get("unique_products",0))
