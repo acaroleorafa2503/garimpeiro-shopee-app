@@ -1,0 +1,32 @@
+GARIMPEIRO V23 — AUDITORIA OFICIAL
+
+Base oficial: V22.1.
+
+A aba Auditoria existente foi transformada no módulo oficial.
+
+A auditoria mostra:
+- timestamp
+- etapa
+- decisão
+- assunto
+- motivo
+- confiança
+- fonte
+
+Ela consolida o estado atual de:
+- Persistência
+- Descoberta
+- Oportunidade
+- Investigação
+- Cérebro de Anúncios
+- Previsão
+- Alertas
+
+Também preserva e exibe o decision_log legado do sistema.
+
+Não faz nova chamada Nexscope.
+Não muda a rota principal.
+Não altera Alertas, Previsão, Ads ou Persistência.
+
+Próximo e último bloco da rota principal:
+V24 — Resumo Executivo.

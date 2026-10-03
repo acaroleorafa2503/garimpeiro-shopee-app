@@ -1,3 +1,4 @@
+from audit_engine import build_audit_snapshot, merge_legacy_decisions
 from alerts_engine import build_alerts as build_smart_alerts
 from forecast_engine import build_realistic_forecast
 from ads_brain_engine import build_ads_brain
@@ -129,7 +130,7 @@ if "persistent_bootstrap_done" not in st.session_state:
         except Exception as _persist_err:
             st.session_state["persistence_error"]=str(_persist_err)
 
-st.title("🚀 Garimpeiro Shopee — V22 Alertas Inteligentes")
+st.title("🚀 Garimpeiro Shopee — V23 Auditoria")
 
 with st.expander("🧪 Diagnóstico da versão"):
     _sc=run_selfcheck()
@@ -1793,5 +1794,61 @@ with tabs[12]:
     if r: st.dataframe(pd.DataFrame(r),use_container_width=True,hide_index=True)
 
 with tabs[13]:
-    st.write("Integridade do banco:",integrity_check())
-    st.dataframe(pd.DataFrame(decision_log(limit=300)),use_container_width=True,hide_index=True)
+    st.subheader("🧾 Auditoria Oficial")
+    st.caption("Mostra o que o Garimpeiro está vendo, qual decisão existe, por quê, com qual confiança e de qual fonte.")
+
+    _audit_state={
+        "products":st.session_state.get("auto_discovery_products") or [],
+        "clusters":st.session_state.get("auto_discovery_clusters") or [],
+        "investigation":st.session_state.get("ads_brain_candidate") or {},
+        "ads_plan":st.session_state.get("ads_brain_plan") or {},
+        "forecast":st.session_state.get("forecast_result") or {},
+        "alerts":st.session_state.get("smart_alerts_result") or {},
+        "persistence_active":persistence_configured(),
+        "credit_blocked":bool(st.session_state.get("nexscope_credit_blocked")),
+    }
+
+    _audit_current=build_audit_snapshot(_audit_state)
+
+    try:
+        _audit_legacy=decision_log(limit=300)
+    except Exception:
+        _audit_legacy=[]
+
+    _audit_all=merge_legacy_decisions(_audit_current,_audit_legacy)
+
+    _aud1,_aud2,_aud3,_aud4=st.columns(4)
+    _aud1.metric("Eventos atuais",len(_audit_current))
+    _aud2.metric("Logs legados",len(_audit_legacy))
+    _aud3.metric("Fontes",len(set(str(r.get("fonte") or "") for r in _audit_all)))
+    _aud4.metric("Integridade DB",str(integrity_check()))
+
+    if not _audit_all:
+        st.info("Ainda não há eventos para auditar.")
+    else:
+        _audit_stages=["Todas"]+sorted(set(str(r.get("etapa") or "") for r in _audit_all if r.get("etapa")))
+        _audit_sources=["Todas"]+sorted(set(str(r.get("fonte") or "") for r in _audit_all if r.get("fonte")))
+
+        _af1,_af2=st.columns(2)
+        _audit_stage=_af1.selectbox("Etapa",_audit_stages,key="official_audit_stage")
+        _audit_source=_af2.selectbox("Fonte",_audit_sources,key="official_audit_source")
+
+        _audit_filtered=[]
+        for _r in _audit_all:
+            if _audit_stage!="Todas" and str(_r.get("etapa"))!=_audit_stage:
+                continue
+            if _audit_source!="Todas" and str(_r.get("fonte"))!=_audit_source:
+                continue
+            _audit_filtered.append(_r)
+
+        _audit_df=pd.DataFrame(_audit_filtered)
+        _audit_cols=["timestamp","etapa","decisao","assunto","motivo","confianca","fonte"]
+        _audit_cols=[c for c in _audit_cols if c in _audit_df.columns]
+        st.dataframe(_audit_df[_audit_cols],use_container_width=True,hide_index=True)
+
+        st.markdown("#### 🔎 Como ler a auditoria")
+        st.write("• **Dado observado**: vem de coleta, banco ou estado real do sistema.")
+        st.write("• **Decisão**: é a classificação/regra aplicada pelo Garimpeiro.")
+        st.write("• **Motivo**: explica por que aquela decisão aparece.")
+        st.write("• **Confiança**: indica o quanto o sistema pode sustentar aquela leitura com os dados disponíveis.")
+        st.write("• **Fonte**: mostra qual módulo ou origem produziu o sinal.")
