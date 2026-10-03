@@ -1,4 +1,4 @@
-from alerts_engine import build_alerts
+from alerts_engine import build_alerts as build_smart_alerts
 from forecast_engine import build_realistic_forecast
 from ads_brain_engine import build_ads_brain
 from investigation_engine import investigate_existing_opportunity
@@ -775,7 +775,7 @@ _alerts_clusters=st.session_state.get("auto_discovery_clusters") or []
 _alerts_forecast=st.session_state.get("forecast_result") or {}
 _alerts_inv=st.session_state.get("ads_brain_candidate") or {}
 
-_alerts_result=build_alerts(
+_alerts_result=build_smart_alerts(
     products=_alerts_products,
     clusters=_alerts_clusters,
     forecast=_alerts_forecast,

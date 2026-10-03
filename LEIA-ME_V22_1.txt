@@ -1,0 +1,14 @@
+GARIMPEIRO V22.1 — CORREÇÃO DO CONFLITO DE ALERTAS
+
+Erro corrigido:
+- A V22 importava build_alerts do novo alerts_engine.
+- Logo depois, scale_radar importava outro build_alerts e sobrescrevia o primeiro.
+- Isso causava TypeError ao chamar o módulo "Alertas Inteligentes".
+
+Correção:
+- O novo módulo passa a usar o alias build_smart_alerts.
+- O build_alerts antigo do V13 continua intacto para compatibilidade.
+- Nenhuma outra lógica foi alterada.
+
+Resultado esperado:
+A seção "Alertas Inteligentes" abre normalmente, sem TypeError.
