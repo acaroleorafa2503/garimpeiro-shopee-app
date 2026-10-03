@@ -1,0 +1,25 @@
+GARIMPEIRO V19 — FLUXO OFICIAL ORGANIZADO
+
+Base oficial: V18 + persistência da V17.
+
+Rota fixa:
+1. Descoberta automática
+2. Oportunidade Hoje
+3. Sazonalidade
+4. Aceleração
+5. Concorrentes Vulneráveis
+6. Investigação Aprofundada
+7. Cérebro de Anúncios
+
+Mudanças:
+- Corrigida a posição da Investigação Aprofundada para dentro da aba Radar.
+- Adicionado painel visual da rota oficial.
+- Adicionado placeholder do Cérebro de Anúncios como próxima etapa.
+- Shopee manual, Investigador antigo, V13 antigo, 1688 e demais ferramentas
+  ficaram recolhidos em "Ferramentas técnicas / módulos antigos".
+- Nenhuma lógica antiga foi apagada.
+- Supabase/persistência mantidos.
+- Proteção de falta de créditos Nexscope mantida.
+- Esta versão não exige nova chamada à API.
+
+Próxima etapa: V20 — Cérebro de Anúncios.
