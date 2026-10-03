@@ -1,0 +1,14 @@
+GARIMPEIRO V10.1 — INVESTIGADOR + NEXSCOPE
+
+Correção:
+- O Investigador agora reconhece o produto exato já carregado pela Nexscope.
+- Evidência Shopee estruturada não zera mais ao entrar no Investigador.
+- Preço real retornado pela Nexscope é reaproveitado.
+- Vendas 30d, avaliação, avaliações, loja e link são preservados.
+- Score do Investigador não pode ficar abaixo do sinal estruturado do produto.
+- Fornecedor continua sendo validado separadamente; não é inventado.
+- Sem fornecedor/custo confirmado, a decisão continua bloqueando compra e pede validação/cotação.
+
+Importante:
+- Não altera os Secrets.
+- NEXSCOPE_API_KEY continua apenas no Streamlit Secrets.

@@ -15,6 +15,74 @@ from scheduler import run_due
 from backup_audit import backup,integrity_check
 from opportunity_radar import run_opportunity_radar, CATEGORY_LABELS, MODE_HINTS
 from nexscope_shopee import search_products, as_structured_shopee_rows, ORDER_LABELS, enabled as nexscope_enabled
+
+
+def _get_nexscope_product_by_name(name):
+    result = st.session_state.get("nexscope_result") or {}
+    products = result.get("products", []) if isinstance(result, dict) else []
+    for p in products:
+        if p.get("produto") == name:
+            return p
+    return None
+
+def _merge_nexscope_into_investigation(product_name, investigation):
+    """
+    Injects already-fetched structured Shopee evidence into the legacy investigator
+    so the investigator does not forget the real Shopee record.
+    """
+    p = _get_nexscope_product_by_name(product_name)
+    if not p or not isinstance(investigation, dict):
+        return investigation
+
+    investigation = dict(investigation)
+
+    # Strong structured Shopee evidence from the exact selected product.
+    investigation["evidencias_shopee"] = max(int(investigation.get("evidencias_shopee") or 0), 1)
+
+    # Preserve/raise confidence because the exact item came from a structured Shopee result.
+    old_score = int(investigation.get("score_investigacao") or 0)
+    structured_score = int(p.get("score_shopee") or 0)
+    investigation["score_investigacao"] = max(old_score, structured_score)
+
+    if structured_score >= 75:
+        investigation["confianca"] = "Alta"
+    elif structured_score >= 60 and investigation.get("confianca") in (None, "", "Baixa"):
+        investigation["confianca"] = "Média"
+
+    # Structured Shopee price.
+    price = p.get("preco")
+    if isinstance(price, (int, float)) and price > 0:
+        investigation["preco_shopee"] = {
+            "median": float(price),
+            "min": float(p.get("preco_min") or price),
+            "max": float(p.get("preco_max") or price),
+            "source": "Shopee via Nexscope"
+        }
+
+    # Detailed structured evidence for UI/debugging and later financial evaluator.
+    investigation["nexscope_shopee"] = {
+        "produto": p.get("produto"),
+        "preco": p.get("preco"),
+        "vendidos_30d": p.get("vendidos_30d"),
+        "vendidos_historicos": p.get("vendidos_historicos"),
+        "faturamento_30d": p.get("faturamento_30d"),
+        "avaliacao": p.get("avaliacao"),
+        "qtd_avaliacoes": p.get("qtd_avaliacoes"),
+        "estoque": p.get("estoque"),
+        "loja": p.get("loja"),
+        "url": p.get("url"),
+        "source": "Shopee via Nexscope",
+    }
+
+    # Never force supplier confirmation. Supplier side remains independent.
+    suppliers = int(investigation.get("fornecedores") or 0)
+    if suppliers > 0:
+        investigation["decisao"] = investigation.get("decisao") or "AVANÇAR PARA COTAÇÃO REAL"
+    else:
+        investigation["decisao"] = "PROCURAR / VALIDAR FORNECEDOR"
+
+    return investigation
+
 from deep_investigator import investigate_product
 from supplier_hunter import hunt_suppliers
 from final_evaluator import evaluate_product
@@ -254,6 +322,8 @@ else:
     if st.button("🔬 Investigar produto",key="run_investigator"):
         with st.spinner(f"Investigando {selected_product}..."):
             inv=investigate_product(selected_product,inv_queries,8)
+
+            inv = _merge_nexscope_into_investigation(selected_product, inv)
             st.session_state["investigation_result"]=inv
 
     inv=st.session_state.get("investigation_result")
