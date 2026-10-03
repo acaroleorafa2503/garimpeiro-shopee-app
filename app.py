@@ -113,9 +113,19 @@ st.divider()
 st.subheader("🧪 Investigador Automático de Produto")
 st.caption("Selecione um candidato do Radar. A investigação usa novas buscas da API para reunir evidência Shopee, fornecedores, preços públicos e confirmações externas.")
 
-candidate_names=[x.get("oportunidade","") for x in rows if x.get("oportunidade")]
+radar_result_for_investigator = st.session_state.get("radar_result") or {}
+investigator_rows = radar_result_for_investigator.get("rows", []) if isinstance(radar_result_for_investigator, dict) else []
+
+candidate_names=[
+    x.get("oportunidade","")
+    for x in investigator_rows
+    if isinstance(x, dict) and x.get("oportunidade")
+]
 candidate_names=list(dict.fromkeys(candidate_names))
-if candidate_names:
+
+if not candidate_names:
+    st.info("Primeiro rode o Radar e gere pelo menos um produto candidato. Depois o Investigador será liberado.")
+else:
     i1,i2=st.columns([3,1])
     selected_product=i1.selectbox("Produto para investigar",candidate_names,key="investigator_product")
     inv_queries=i2.selectbox("Buscas da investigação",[3,4,5,6],index=1,key="investigator_queries")
